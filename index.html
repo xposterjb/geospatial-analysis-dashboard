@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="it">
-
 <head>
     <meta charset="UTF-8">
     <title>Analisi Geospaziale Delitti MdF</title>
@@ -8,22 +7,18 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
-
 <body>
     <div class="dashboard">
         <div class="controls">
             <h2><span class="material-icons">tune</span>Filtri</h2>
-
             <div class="control-group">
                 <h3><span class="material-icons">location_on</span>Punti Interesse</h3>
                 <div id="punti-interesse-controls"></div>
             </div>
-
             <div class="control-group">
                 <h3><span class="material-icons">warning</span>Delitti MdF</h3>
                 <div id="delitti-controls"></div>
             </div>
-
             <div class="control-group">
                 <h3><span class="material-icons">timeline</span>Timeline: <span id="anno-corrente">1985</span></h3>
                 <div class="slider-container">
@@ -32,7 +27,6 @@
                     <span class="slider-label" id="max-anno">1985</span>
                 </div>
             </div>
-
             <div class="control-group">
                 <h3><span class="material-icons">analytics</span>Tipo Analisi</h3>
                 <select id="tipo-analisi">
@@ -40,7 +34,6 @@
                     <option value="fermat">Punto di Fermat</option>
                 </select>
             </div>
-
             <div class="control-group">
                 <h3><span class="material-icons">label</span>Etichette</h3>
                 <label>
@@ -48,7 +41,6 @@
                     Mostra tutte le etichette
                 </label>
             </div>
-
             <div class="legend">
                 <h4><span class="material-icons">legend_toggle</span>Legenda</h4>
                 <div class="legend-item"><span class="legend-marker delitto"></span> Delitto</div>
@@ -58,14 +50,11 @@
                 <div class="legend-item"><span class="legend-marker canter-circle"></span> Cerchio di Canter</div>
             </div>
         </div>
-
         <div id="map"></div>
     </div>
-
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
     <script src="app.js"></script>
 </body>
-
 </html>
