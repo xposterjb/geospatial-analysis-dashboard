@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="it">
+
 <head>
     <meta charset="UTF-8">
     <title>Analisi Geospaziale Delitti MdF</title>
@@ -7,17 +8,23 @@
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <div class="dashboard">
         <div class="controls">
             <h2><span class="material-icons">tune</span>Filtri</h2>
-            <div class="control-group">
-                <h3><span class="material-icons">location_on</span>Punti Interesse</h3>
-                <div id="punti-interesse-controls"></div>
-            </div>
+
             <div class="control-group">
                 <h3><span class="material-icons">warning</span>Delitti MdF</h3>
                 <div id="delitti-controls"></div>
+            </div>
+            <div class="control-group">
+                <h3><span class="material-icons">warning</span>Omicidi Collaterali</h3>
+                <div id="omicidi-collaterali-controls"></div>
+            </div>
+            <div class="control-group">
+                <h3><span class="material-icons">location_on</span>Punti Interesse</h3>
+                <div id="punti-interesse-controls"></div>
             </div>
             <div class="control-group">
                 <h3><span class="material-icons">timeline</span>Timeline: <span id="anno-corrente">1985</span></h3>
@@ -41,6 +48,13 @@
                     Mostra tutte le etichette
                 </label>
             </div>
+            <div class="control-group">
+                <h3><span class="material-icons">my_location</span>Coordinate</h3>
+                <button id="get-coords-btn" class="coord-btn">
+                    <span class="material-icons">touch_app</span>Clicca sulla mappa
+                </button>
+                <div id="coords-display" class="coords-box"></div>
+            </div>
             <div class="legend">
                 <h4><span class="material-icons">legend_toggle</span>Legenda</h4>
                 <div class="legend-item"><span class="legend-marker delitto"></span> Delitto</div>
@@ -55,6 +69,12 @@
     <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
-    <script src="app.js"></script>
+
+    <script src="js/config.js"></script>
+    <script src="js/data.js"></script>
+    <script src="js/algorithms.js"></script>
+    <script src="js/mapManager.js"></script>
+    <script src="js/geoAnalysis.js"></script>
 </body>
+
 </html>
