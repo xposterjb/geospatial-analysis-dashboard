@@ -17,3 +17,15 @@ Questo progetto offre una mappa interattiva e strumenti per l'analisi spaziale d
   - Centro di Probabile Residenza (BETA)
   - Convex Hull
 - Possibilità di aggiungere manualmente nuovi punti sulla mappa
+
+### In sviluppo / Aggiornamenti futuri
+
+- Salvataggio locale dei punti di interesse
+- Esportazione dei dati e delle analisi
+- Miglioramenti all'accessibilità e all'interfaccia
+- Ottimizzazione delle prestazioni
+- Revisione del dataset
+- Modalità Scura
+- Documentazione più dettagliata
+
+Contributi, idee e feedback sono benvenuti.
