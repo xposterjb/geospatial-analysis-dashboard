@@ -1,24 +1,63 @@
 /**
- * Algoritmi per l'analisi dei punti:
+ * Algoritmi per l'analisi criminologica.
+ * Strumenti inclusi:
+ *
+ * 1. calcolaRaggioMassimo:
+ *    - Determina la distanza massima di un insieme di punti da un punto centrale.
  * 
- * 1) calcolaRaggioMassimo: Determina la distanza massima da un punto centrale
- * 2) algoritmiGeometrici - Contiene tre metodi di analisi:
- *    - centroide: Calcola il baricentro geometrico
- *    - fermat: Trova il punto che minimizza le distanze (algoritmo di Weiszfeld)
- *    - canter: Identifica l'area circolare minima che contiene tutti i punti
+ * 2. algoritmiGeometrici:
+ *    - baricentro:
+ *        Calcola la media aritmetica delle coordinate dei punti (centroide geometrico).
+ *    - fermat:
+ *        Trova il punto che minimizza la somma delle distanze euclidee da tutti i punti.
+ *        Implementa l'algoritmo di Weiszfeld.
+ *    - canter:
+ *        Identifica il centro del cerchio avente come diametro la coppia di punti più distanti.
+ *        Può non contenere tutti i punti.
+ *    - centroProbabileResidenza (CPR):
+ *        Calcola un punto pesato che stima la probabile zona di residenza del colpevole.
+ *        I pesi decrescono con la distanza, il tempo e la tipologia dell’evento.
+ *        È un algoritmo iterativo basato su una variante pesata del centro di Fermat.
+ *    - convexHull:
+ *        Calcola il minimo poligono convesso che racchiude tutti i punti (Convex Hull).
+ *        Utile per comprendere l'estensione spaziale dei delitti.
+ *    - calcolaDeviazioneStandardDistanze:
+ *        Misura la dispersione dei punti rispetto a un centro dato.
  */
 
+const SQRT_EPSILON = window.SQRT_EPSILON;
+const COLLINEARITY_THRESHOLD = window.COLLINEARITY_THRESHOLD;
+const MAX_ITERATIONS = window.MAX_ITERATIONS;
+const POSITION_TOLERANCE = window.POSITION_TOLERANCE;
+
+const median = punti => {
+    if (punti.length === 0) return { x: 0, y: 0, raggio: 0 };
+    const medianCoord = axis => {
+        const values = punti.map(p => p[axis]).sort((a, b) => a - b);
+        const mid = Math.floor(values.length / 2);
+        return values.length % 2 === 0
+            ? (values[mid - 1] + values[mid]) / 2
+            : values[mid];
+    };
+    const x = medianCoord('x');
+    const y = medianCoord('y');
+    return {
+        x,
+        y,
+        raggio: calcolaRaggioMassimo(punti, { x, y })
+    };
+};
+
 const calcolaRaggioMassimo = (points, center) => Math.max(...points.map(p =>
-    Math.hypot(p.x - center.x, p.y - center.y))
-);
+    Math.hypot(p.x - center.x, p.y - center.y)
+));
 
 const algoritmiGeometrici = {
-    centroide: punti => {
+    baricentro: punti => {
         const somma = punti.reduce((acc, p) => ({
             x: acc.x + p.x,
             y: acc.y + p.y
         }), { x: 0, y: 0 });
-        
         return {
             x: somma.x / punti.length,
             y: somma.y / punti.length,
@@ -30,8 +69,7 @@ const algoritmiGeometrici = {
     },
 
     fermat: punti => {
-        if (punti.length < 3) return algoritmiGeometrici.centroide(punti);
-
+        if (punti.length < 3) return algoritmiGeometrici.baricentro(punti);
         let isCollineare = true;
         for (let i = 2; i < punti.length; i++) {
             const area = Math.abs(
@@ -43,14 +81,12 @@ const algoritmiGeometrici = {
                 break;
             }
         }
-
         if (isCollineare) {
             const minX = Math.min(...punti.map(p => p.x));
             const maxX = Math.max(...punti.map(p => p.x));
             const minY = Math.min(...punti.map(p => p.y));
             const maxY = Math.max(...punti.map(p => p.y));
-            
-            const midPoint = {
+            return {
                 x: (minX + maxX) * 0.5,
                 y: (minY + maxY) * 0.5,
                 raggio: calcolaRaggioMassimo(punti, {
@@ -58,38 +94,28 @@ const algoritmiGeometrici = {
                     y: (minY + maxY) * 0.5
                 })
             };
-            return midPoint;
         }
-
-        // Algoritmo di Weiszfeld
-        let punto = algoritmiGeometrici.centroide(punti);
+        let punto = algoritmiGeometrici.baricentro(punti);
         let prevX = punto.x, prevY = punto.y;
-
         for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
             let sumX = 0, sumY = 0, sumW = 0;
-
             for (const p of punti) {
                 const dx = p.x - prevX;
                 const dy = p.y - prevY;
                 const dist = Math.sqrt(dx * dx + dy * dy + SQRT_EPSILON);
                 const invDist = 1 / dist;
-
                 sumX += p.x * invDist;
                 sumY += p.y * invDist;
                 sumW += invDist;
             }
-
             const newX = sumX / sumW;
             const newY = sumY / sumW;
             const dx = newX - prevX;
             const dy = newY - prevY;
-
             if (dx * dx + dy * dy < POSITION_TOLERANCE) break;
-
             prevX += 0.67 * dx;
             prevY += 0.67 * dy;
         }
-
         return {
             x: prevX,
             y: prevY,
@@ -98,14 +124,11 @@ const algoritmiGeometrici = {
     },
 
     canter: punti => {
-        if (punti.length <= 1) return { 
-            ...(punti[0] || { x: 0, y: 0 }), 
-            raggio: 0 
-        };
-
+        if (punti.length <= 1) {
+            return { ...(punti[0] || { x: 0, y: 0 }), raggio: 0 };
+        }
         let maxDist = 0;
         let coppia = null;
-        
         for (let i = 0; i < punti.length; i++) {
             for (let j = i + 1; j < punti.length; j++) {
                 const dist = Math.hypot(
@@ -118,11 +141,77 @@ const algoritmiGeometrici = {
                 }
             }
         }
-        
         return coppia ? {
             x: (punti[coppia[0]].x + punti[coppia[1]].x) / 2,
             y: (punti[coppia[0]].y + punti[coppia[1]].y) / 2,
             raggio: maxDist / 2
         } : { x: 0, y: 0, raggio: 0 };
+    },
+
+    centroProbabileResidenza: punti => {
+        if (punti.length === 0) return { x: 0, y: 0 };
+        const baricentroIniziale = algoritmiGeometrici.baricentro(punti.map(p => ({ x: p.x, y: p.y })));
+        const annoMassimo = Math.max(...punti.map(p => p.year || 1985));
+        const datasetPesi = punti.map(p => {
+            const dist = Math.hypot(p.x - baricentroIniziale.x, p.y - baricentroIniziale.y);
+            const journeyWeight = Math.exp(-0.5 * Math.pow(dist / 5000, 2));
+            const deltaAnni = annoMassimo - (p.year || annoMassimo);
+            const decayTime = Math.exp(-0.25 * deltaAnni);
+            const pesoTipo = (p.pesoBase !== undefined) ? p.pesoBase : 1.0;
+            return {
+                x: p.x,
+                y: p.y,
+                peso: pesoTipo * journeyWeight * decayTime
+            };
+        });
+        let centro = { ...baricentroIniziale };
+        let delta = Infinity;
+        let iter = 0;
+        while (delta > 1e-8 && iter < MAX_ITERATIONS) {
+            let sumX = 0, sumY = 0, sumW = 0;
+            datasetPesi.forEach(p => {
+                const dist = Math.hypot(p.x - centro.x, p.y - centro.y) + SQRT_EPSILON;
+                sumX += (p.peso * p.x) / dist;
+                sumY += (p.peso * p.y) / dist;
+                sumW += p.peso / dist;
+            });
+            const newX = sumX / sumW;
+            const newY = sumY / sumW;
+            delta = Math.hypot(newX - centro.x, newY - centro.y);
+            centro = { x: newX, y: newY };
+            iter++;
+        }
+        return centro;
+    },
+
+    convexHull: function (points) {
+        const sorted = points.slice().sort((a, b) => a.x - b.x || a.y - b.y);
+        const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+        const lower = [];
+        for (const p of sorted) {
+            while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) {
+                lower.pop();
+            }
+            lower.push(p);
+        }
+        const upper = [];
+        for (let i = sorted.length - 1; i >= 0; i--) {
+            const p = sorted[i];
+            while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) {
+                upper.pop();
+            }
+            upper.push(p);
+        }
+        upper.pop();
+        lower.pop();
+        return lower.concat(upper);
+    },
+
+    calcolaDeviazioneStandardDistanze: (punti, centro) => {
+        if (punti.length === 0) return 0;
+        const distanze = punti.map(p => Math.hypot(p.x - centro.x, p.y - centro.y));
+        const media = distanze.reduce((acc, d) => acc + d, 0) / distanze.length;
+        const varianza = distanze.reduce((acc, d) => acc + Math.pow(d - media, 2), 0) / distanze.length;
+        return Math.sqrt(varianza);
     }
 };
