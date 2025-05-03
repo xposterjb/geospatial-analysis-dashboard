@@ -1,80 +1,243 @@
 <!DOCTYPE html>
 <html lang="it">
-
-<head>
-    <meta charset="UTF-8">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Analisi Geospaziale Delitti MdF</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Roboto+Mono&display=swap"
+      rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-</head>
-
-<body>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
     <div class="dashboard">
-        <div class="controls">
-            <h2><span class="material-icons">tune</span>Filtri</h2>
-
-            <div class="control-group">
-                <h3><span class="material-icons">warning</span>Delitti MdF</h3>
-                <div id="delitti-controls"></div>
+      <!-- Barra laterale di controllo -->
+      <aside class="controls" aria-label="Filtri mappa">
+        <h2>
+          <span class="material-icons" aria-hidden="true">tune</span>
+          Filtri
+        </h2>
+        <!-- Delitti MdF -->
+        <details class="control-group accordion" aria-label="Filtri Delitti MdF">
+          <summary>
+            <span class="material-icons" aria-hidden="true">warning</span>
+            Delitti MdF
+          </summary>
+          <div id="delitti-checkbox"></div>
+        </details>
+        <!-- Omicidi collaterali -->
+        <details class="control-group accordion" aria-label="Filtri Omicidi Collaterali">
+          <summary>
+            <span class="material-icons" aria-hidden="true">warning</span>
+            Omicidi Collaterali
+          </summary>
+          <div id="omicidi-collaterali-checkbox"></div>
+        </details>
+        <!-- Abitazioni sospettati -->
+        <details class="control-group accordion" aria-label="Filtri Abitazioni Sospettati">
+          <summary>
+            <span class="material-icons" aria-hidden="true">home</span>
+            Abitazioni Sospettati
+          </summary>
+          <div id="abitazioni-sospettati-checkbox"></div>
+        </details>
+        <!-- Abitazioni vittime -->
+        <details class="control-group accordion" aria-label="Filtri Abitazioni Vittime">
+          <summary>
+            <span class="material-icons" aria-hidden="true">home</span>
+            Abitazioni Vittime
+          </summary>
+          <div id="abitazioni-vittime-checkbox"></div>
+        </details>
+        <!-- Punti di interesse -->
+        <details class="control-group accordion" aria-label="Filtri Punti di Interesse">
+          <summary>
+            <span class="material-icons" aria-hidden="true">location_on</span>
+            Punti Interesse
+          </summary>
+          <div id="punti-interesse-checkbox"></div>
+        </details>
+        <!-- Timeline -->
+        <details class="control-group accordion" aria-label="Filtro Timeline">
+          <summary>
+            <span class="material-icons" aria-hidden="true">timeline</span>
+            Timeline: <span id="anno-corrente" aria-live="polite">1985</span>
+          </summary>
+          <div class="slider-container">
+            <div class="slider-label">
+              <span id="min-anno">1968</span>
+              <input type="range" id="anno-slider" min="1968" max="2005" value="1985" />
+              <span id="max-anno">2025</span>
             </div>
-            <div class="control-group">
-                <h3><span class="material-icons">warning</span>Omicidi Collaterali</h3>
-                <div id="omicidi-collaterali-controls"></div>
+          </div>
+        </details>
+        <!-- Tipo analisi -->
+        <details class="control-group accordion" aria-label="Selezione tipo di analisi">
+          <summary>
+            <span class="material-icons" aria-hidden="true">analytics</span>
+            Tipo Analisi
+          </summary>
+          <div class="checkbox-group">
+            <label
+              title="Calcola il baricentro geometrico (media delle coordinate) dei delitti selezionati. Chiamato anche Centroide.">
+              <input type="checkbox" id="analisi-baricentro" checked />
+              Baricentro
+            </label>
+            <label title="Trova il punto che minimizza la somma delle distanze dai delitti selezionati.">
+              <input type="checkbox" id="analisi-fermat" />
+              CMD - Punto di Fermat
+            </label>
+            <label
+              title="Individua il centro del cerchio che ha come diametro la linea che congiunge i due delitti più distanti.">
+              <input type="checkbox" id="analisi-canter-center" />
+              Centro Canter
+            </label>
+            <label
+              title="Stima la probabile zona di residenza del colpevole pesando i punti in base a distanza, tempo e tipologia.">
+              <input type="checkbox" id="analisi-cpr" />
+              Centro di Probabile Residenza
+            </label>
+            <label title="Disegna il poligono convesso minimo che racchiude i delitti attivi.">
+              <input type="checkbox" id="analisi-chp" />
+              Convex Hull (CHP)
+            </label>
+          </div>
+        </details>
+        <!-- Etichette -->
+        <details class="control-group accordion" aria-label="Mostra etichette">
+          <summary>
+            <span class="material-icons" aria-hidden="true">label</span>
+            Etichette
+          </summary>
+          <label>
+            <input type="checkbox" id="mostra-etichette" />
+            Mostra tutte le etichette
+          </label>
+        </details>
+        <section class="control-group accordion poi-card" aria-label="Aggiungi nuovo punto di interesse">
+          <div class="section-header">
+            <span class="material-icons" aria-hidden="true">add_location_alt</span>
+            Nuovo Punto di Interesse
+          </div>
+          <div class="poi-form">
+            <button id="aggiungi-punto-btn" class="btn btn-primary" type="button">
+              <span class="material-icons" aria-hidden="true">gps_fixed</span>
+              Seleziona posizione
+            </button>
+            <div id="aggiungi-info" class="poi-info" hidden>
+              <p class="poi-hint">
+                <span class="material-icons" aria-hidden="true">info</span>
+                Clicca sulla mappa per selezionare il punto.
+              </p>
+              <input type="text" id="nome-punto" class="poi-input" placeholder="Nome del punto" hidden />
+              <button id="salva-punto-btn" class="btn btn-secondary" type="button">
+                <span class="material-icons" aria-hidden="true">check</span>
+                Salva
+              </button>
             </div>
-            <div class="control-group">
-                <h3><span class="material-icons">location_on</span>Punti Interesse</h3>
-                <div id="punti-interesse-controls"></div>
-            </div>
-            <div class="control-group">
-                <h3><span class="material-icons">timeline</span>Timeline: <span id="anno-corrente">1985</span></h3>
-                <div class="slider-container">
-                    <span class="slider-label" id="min-anno">1968</span>
-                    <input type="range" id="anno-slider" min="1968" max="1985" value="1985" class="slider">
-                    <span class="slider-label" id="max-anno">1985</span>
-                </div>
-            </div>
-            <div class="control-group">
-                <h3><span class="material-icons">analytics</span>Tipo Analisi</h3>
-                <select id="tipo-analisi">
-                    <option value="centroide">Centroide</option>
-                    <option value="fermat">Punto di Fermat</option>
-                </select>
-            </div>
-            <div class="control-group">
-                <h3><span class="material-icons">label</span>Etichette</h3>
-                <label>
-                    <input type="checkbox" id="mostra-etichette">
-                    Mostra tutte le etichette
-                </label>
-            </div>
-            <div class="control-group">
-                <h3><span class="material-icons">my_location</span>Coordinate</h3>
-                <button id="get-coords-btn" class="coord-btn">
-                    <span class="material-icons">touch_app</span>Clicca sulla mappa
-                </button>
-                <div id="coords-display" class="coords-box"></div>
-            </div>
-            <div class="legend">
-                <h4><span class="material-icons">legend_toggle</span>Legenda</h4>
-                <div class="legend-item"><span class="legend-marker delitto"></span> Delitto</div>
-                <div class="legend-item"><span class="legend-marker interesse"></span> Punto interesse</div>
-                <div class="legend-item"><span class="legend-marker centroide"></span> Centroide</div>
-                <div class="legend-item"><span class="legend-marker fermat"></span> Punto di Fermat</div>
-                <div class="legend-item"><span class="legend-marker canter-circle"></span> Cerchio di Canter</div>
-            </div>
-        </div>
-        <div id="map"></div>
+          </div>
+        </section>
+        <!-- Legenda -->
+        <section class="control-group accordion legend">
+          <div class="section-header">
+            <span class="material-icons" aria-hidden="true">menu</span>
+            Legenda
+          </div>
+          <ul>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <span class="material-icons" style="color: var(--color-danger);">warning</span>
+              </div>
+              Delitto Principale
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <span class="material-icons" style="color: var(--color-warning);">warning</span>
+              </div>
+              Omicidio Collaterale
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <span class="material-icons" style="color: var(--color-neutral);">home</span>
+              </div>
+              Abitazione Sospettato
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <span class="material-icons" style="color: var(--color-primary-dark);">home</span>
+              </div>
+              Abitazione Vittima
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <span class="material-icons" style="color: var(--color-primary);">location_on</span>
+              </div>
+              Punto di Interesse
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker special"
+                  style="background: var(--bg-success); border: 2px solid var(--color-success); color: var(--color-success);">
+                  B</div>
+              </div>
+              Baricentro
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker special"
+                  style="background: var(--bg-warning); border: 2px solid var(--color-warning); color: var(--color-warning);">
+                  F</div>
+              </div>
+              CMD - Punto di Fermat
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker special"
+                  style="background: var(--bg-accent); border: 2px solid var(--color-accent); color: var(--color-accent);">
+                  C</div>
+              </div>
+              Centro Canter
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker canter-circle"></div>
+              </div>
+              Cerchio di Canter
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker special"
+                  style="background: var(--bg-muted); border: 2px solid var(--border-strong); color: var(--color-muted);">
+                  CPR</div>
+              </div>
+              Centro Probabile Residenza
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <svg width="20" height="20">
+                  <polygon points="2,2 18,2 18,18 2,18" fill="none" stroke="black" stroke-width="2" />
+                </svg>
+              </div>
+              Convex Hull (CHP)
+            </li>
+          </ul>
+        </section>
+      </aside>
+      <main id="map" tabindex="0" role="application" aria-label="Mappa interattiva"></main>
     </div>
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
-
-    <script src="js/config.js"></script>
-    <script src="js/data.js"></script>
-    <script src="js/algorithms.js"></script>
-    <script src="js/mapManager.js"></script>
-    <script src="js/geoAnalysis.js"></script>
-</body>
-
+    <!-- Librerie JavaScript -->
+    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" defer></script>
+    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js" defer></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js" defer></script>
+    <!-- Script dell’applicazione -->
+    <script src="js/config.js" defer></script>
+    <script src="js/data.js" defer></script>
+    <script src="js/algorithms.js" defer></script>
+    <script src="js/mapManager.js" defer></script>
+    <script src="js/geoAnalysis.js" defer></script>
+  </body>
 </html>
