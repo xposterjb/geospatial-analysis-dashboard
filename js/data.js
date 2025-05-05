@@ -66,7 +66,7 @@ const rawData = {
 
         // Trovata morta in una traversa di via Bolognese, come Mir. Esc.
         // Segni di strangolamento e cinque coltellate.
-        [43.811972, 11.272342, 'Gab. Car. 1984'],
+        [43.811972, 11.272342, 'Gab. Cal. 1984'],
 
         // Cadavere carbonizzato trovato in un prato. Presenza di una Golf rubata di colore verde.
         [43.95698, 11.21286, 'Donna trovata carbonizzata 1984'],
