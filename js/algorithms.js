@@ -8,10 +8,10 @@
  * 2. algoritmiGeometrici:
  *    - baricentro:
  *        Calcola la media aritmetica delle coordinate dei punti (centroide geometrico).
- *    - fermat:
+ *    - centro di minima distanza (CMD) - punto di Fermat:
  *        Trova il punto che minimizza la somma delle distanze euclidee da tutti i punti.
  *        Implementa l'algoritmo di Weiszfeld.
- *    - canter:
+ *    - Canter:
  *        Identifica il centro del cerchio avente come diametro la coppia di punti più distanti.
  *        Può non contenere tutti i punti.
  *    - centroProbabileResidenza (CPR):
@@ -54,13 +54,16 @@ const calcolaRaggioMassimo = (points, center) => Math.max(...points.map(p =>
 
 const algoritmiGeometrici = {
     baricentro: punti => {
+        /* Calcolo somma delle coordinate. acc (accumulo), p (punto) */
         const somma = punti.reduce((acc, p) => ({
             x: acc.x + p.x,
             y: acc.y + p.y
         }), { x: 0, y: 0 });
         return {
+            /* Restituisce media delle coordinate e raggio massimo */
             x: somma.x / punti.length,
             y: somma.y / punti.length,
+
             raggio: calcolaRaggioMassimo(punti, {
                 x: somma.x / punti.length,
                 y: somma.y / punti.length
@@ -69,9 +72,14 @@ const algoritmiGeometrici = {
     },
 
     fermat: punti => {
+        /* Per meno di 3 punti restituisce il baricentro */
         if (punti.length < 3) return algoritmiGeometrici.baricentro(punti);
+
+        /* Valuta se i punti sono collineari */
         let isCollineare = true;
         for (let i = 2; i < punti.length; i++) {
+
+            /* Calcola il doppio dell'area di tre punti. Se questa è maggiore della soglia i punti non sono collineari */
             const area = Math.abs(
                 (punti[1].x - punti[0].x) * (punti[i].y - punti[0].y) -
                 (punti[1].y - punti[0].y) * (punti[i].x - punti[0].x)
@@ -81,12 +89,15 @@ const algoritmiGeometrici = {
                 break;
             }
         }
+
         if (isCollineare) {
             const minX = Math.min(...punti.map(p => p.x));
             const maxX = Math.max(...punti.map(p => p.x));
             const minY = Math.min(...punti.map(p => p.y));
             const maxY = Math.max(...punti.map(p => p.y));
+            
             return {
+                /* Se collineari restituisce il punto medio tra le coordinate min e max */
                 x: (minX + maxX) * 0.5,
                 y: (minY + maxY) * 0.5,
                 raggio: calcolaRaggioMassimo(punti, {
@@ -95,24 +106,40 @@ const algoritmiGeometrici = {
                 })
             };
         }
+
+        /* Parto dal baricentro */
         let punto = algoritmiGeometrici.baricentro(punti);
         let prevX = punto.x, prevY = punto.y;
+
         for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
             let sumX = 0, sumY = 0, sumW = 0;
+
             for (const p of punti) {
+                /* Per ogni punto p calcolo la distanza x y con il precedente */
                 const dx = p.x - prevX;
                 const dy = p.y - prevY;
+
+                /* Trovo la distanza. Aggiungo epsilon per evitare divisioni per zero */
                 const dist = Math.sqrt(dx * dx + dy * dy + SQRT_EPSILON);
+
+                /* Uso il reciproco della distanza come peso */
                 const invDist = 1 / dist;
                 sumX += p.x * invDist;
                 sumY += p.y * invDist;
+
+                /* Somma dei pesi totali */
                 sumW += invDist;
             }
+
             const newX = sumX / sumW;
             const newY = sumY / sumW;
             const dx = newX - prevX;
             const dy = newY - prevY;
+
+            /* Se il nuovo punto è molto vicino a quello precedente interrompo il ciclo */
             if (dx * dx + dy * dy < POSITION_TOLERANCE) break;
+
+            /* Smorzo il salto al nuovo punto per avere maggiore stabilità */
             prevX += 0.67 * dx;
             prevY += 0.67 * dy;
         }
@@ -150,20 +177,33 @@ const algoritmiGeometrici = {
 
     centroProbabileResidenza: punti => {
         if (punti.length === 0) return { x: 0, y: 0 };
+
+        /* Parto dal baricentro */
         const baricentroIniziale = algoritmiGeometrici.baricentro(punti.map(p => ({ x: p.x, y: p.y })));
+        
+        /* Trovo l'anno più recente tra tutti i punti */
         const annoMassimo = Math.max(...punti.map(p => p.year || 1985));
+
         const datasetPesi = punti.map(p => {
+
+            /* Peso relativo alla distanza dal centro iniziale. Più è lontano e meno pesa */
             const dist = Math.hypot(p.x - baricentroIniziale.x, p.y - baricentroIniziale.y);
             const journeyWeight = Math.exp(-0.5 * Math.pow(dist / 5000, 2));
+
+            /* Peso relativo al tempo trascorso. Più è vecchio e meno conta */
             const deltaAnni = annoMassimo - (p.year || annoMassimo);
             const decayTime = Math.exp(-0.25 * deltaAnni);
+            
+            /* Ipotesi che le morti collaterali siano meno informnative (peso 0.3) */
             const pesoTipo = (p.pesoBase !== undefined) ? p.pesoBase : 1.0;
             return {
+                /* restituisce il punto e il suo peso finale (media ponderata dei tre pesi calcolati) */
                 x: p.x,
                 y: p.y,
-                peso: pesoTipo * journeyWeight * decayTime
+                peso: 0.333 * pesoTipo + 0.333 * journeyWeight + 0.333 * decayTime
             };
         });
+
         let centro = { ...baricentroIniziale };
         let delta = Infinity;
         let iter = 0;
