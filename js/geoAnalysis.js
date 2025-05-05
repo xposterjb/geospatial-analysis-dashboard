@@ -344,11 +344,11 @@ class GeoAnalysisApp {
             if (mostraCPR) {
                 // Dati da usare: delitti principali + omicidi collaterali attivi + punti di interesse attivi
                 const tuttiPunti = [
-                    ...delittiAttivi.map(p => ({ ...p, pesoBase: 1.0 })),
-                    ...puntiInteresse.map(p => ({ ...p, pesoBase: 0.3 })),
+                    ...delittiAttivi.map(p => ({ ...p, pesoBase: window.BASE_WEIGHT })),
+                    ...puntiInteresse.map(p => ({ ...p, pesoBase: window.POI_WEIGHT })),
                     ...this.datasets.omicidiCollaterali
                         .filter(c => delittiAttivi.find(d => d.label === c.label))
-                        .map(c => ({ ...c, pesoBase: 0.3 }))
+                        .map(c => ({ ...c, pesoBase: window.COLLATERAL_WEIGHT }))
                 ];
 
                 if (tuttiPunti.length > 0) {
@@ -381,7 +381,11 @@ class GeoAnalysisApp {
 
                     if (tuttiPunti.length > 1) {
                         const deviazione = algoritmiGeometrici.calcolaDeviazioneStandardDistanze(tuttiPunti, centroCPR);
-                        const raggio = Math.min(deviazione, 1000);
+                        
+                        console.log("Deviazione: "+deviazione);
+                        const raggio = Math.min(deviazione, window.CPR_RADIUS_LIMIT);
+                        //const raggio = Math.min(deviazione, 1000);
+                        console.log("Raggio: "+ raggio);
 
                         this.mapManager.addCircle(latCPR, lonCPR, raggio, {
                             color: getCSSVar('--color-neutral'),
