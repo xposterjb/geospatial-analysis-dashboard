@@ -1,6 +1,6 @@
 ## Analisi Geospaziale dei Delitti del Mostro di Firenze
 
-Questo progetto offre una mappa interattiva e strumenti per l'analisi spaziale dei delitti attribuiti al Mostro di Firenze. Include:
+Questo progetto offre una dashboard interattiva per l'analisi spaziale dei delitti attribuiti al Mostro di Firenze. Include:
 
 - Delitti principali e omicidi collaterali
 - Abitazioni di vittime, indagati e principali sospettati
@@ -10,16 +10,22 @@ Questo progetto offre una mappa interattiva e strumenti per l'analisi spaziale d
 
 - Mappa interattiva basata su Leaflet
 - Timeline per filtrare gli eventi per anno
+- Filtri configurabili per categoria di eventi
 - Algoritmi di analisi spaziale:
   - Baricentro geometrico
-  - Punto di Fermat (minimizzazione delle distanze)
+  - Mediana delle coordinate
+  - Centro di Minima Distanza
   - Centro di Canter
-  - Centro di Probabile Residenza (BETA)
+  - Centro di Probabile Residenza (CPR) con parametri configurabili - BETA
   - Convex Hull
+  - Mean Interpoint Distance (MID)
+  - Nearest Neighbour Index (NNI)
 - Possibilità di aggiungere manualmente nuovi punti sulla mappa
 
 ### In sviluppo / Aggiornamenti futuri
 
+- Voronoi
+- Delaunay
 - Salvataggio locale dei punti di interesse
 - Esportazione dei dati e delle analisi
 - Miglioramenti all'accessibilità e all'interfaccia
