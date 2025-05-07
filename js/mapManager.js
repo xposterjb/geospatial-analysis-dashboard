@@ -119,6 +119,49 @@ class MapManager {
         return circle;
     }
 
+    addLine(coord1, coord2, options = {}) {
+        const defaults = {
+            color: '#000000',
+            weight: 2,
+            dashArray: null,
+            opacity: 1,
+            popup: null
+        };
+        const settings = { ...defaults, ...options };
+    
+        const line = L.polyline([coord1, coord2], {
+            color: settings.color,
+            weight: settings.weight,
+            dashArray: settings.dashArray,
+            opacity: settings.opacity,
+            renderer: this.svgRenderer
+        }).addTo(this.map);
+    
+        if (settings.popup) {
+            line.bindPopup(settings.popup);
+        }
+    
+        this.layers.push(line);
+        return line;
+    }
+    
+    addLegend(content, options = {}) {
+        const { position = 'topright' } = options;
+
+        if (this.legend) {
+            this.map.removeControl(this.legend);
+        }
+
+        this.legend = L.control({ position });
+        this.legend.onAdd = () => {
+            const div = L.DomUtil.create('div', 'map-legend');
+            div.innerHTML = content;
+            L.DomEvent.disableClickPropagation(div);
+            return div;
+        };
+        this.legend.addTo(this.map);
+    }
+
     addPolygon(latlngs, options = {}) {
         const polygon = L.polygon(latlngs, {
             color: options.color || 'black',
@@ -132,7 +175,7 @@ class MapManager {
         polygon.addTo(this.map);
         this.layers.push(polygon);
         return polygon;
-    }   
+    }  
 
     abilitaCoordinateButton() {
         const btn = document.getElementById('get-coords-btn');
