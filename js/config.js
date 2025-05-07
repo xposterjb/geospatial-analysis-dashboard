@@ -21,7 +21,14 @@ window.ANNO_INIZIALE_SLIDER  = 1985;
 // Costanti CPR
 window.JOURNEY_RADIUS = 5000; // Soglia raggio 5km
 window.TIME_DECAY_RATE = 0.25;
+
+window.BASE_WEIGHT = 1.0; // delitti principali
+window.COLLATERAL_WEIGHT = 0.3; // morti collaterali
+window.POI_WEIGHT = 0.3; // punti interesse
+
 // Pesi per il calcolo della media ponderata delle tre componenti
 window.JW_COMPONENT_WEIGHT = 0.333;
 window.DT_COMPONENT_WEIGHT = 0.333;
 window.PB_COMPONENT_WEIGHT = 0.333;
+
+window.CPR_RADIUS_LIMIT = 50000; // 50km raggio massimo circonferenza attorno a CPR
