@@ -254,7 +254,7 @@ class GeoAnalysisApp {
         btnAnnulla.addEventListener('click', resetUIPuntoInteresse);
 
         // Aggiungi evento per tasto ESC
-        document.addEventListener('keydown', function(e) {
+        document.addEventListener('keydown', function (e) {
             if (e.key === 'Escape' && btnAggiungi.disabled) {
                 resetUIPuntoInteresse();
             }
@@ -390,23 +390,26 @@ class GeoAnalysisApp {
         this.infoboxContent = document.querySelector('.map-legend-unified .legend-content');
     }
 
-    aggiornaInfoboxBase(titolo, contenuto) {
+    aggiornaInfoboxBase(titolo, contenuto, iconaHtml) {
         if (!this.infoboxContent) this.creaInfoboxBase();
 
         const nuovaSezione = document.createElement('div');
         nuovaSezione.className = 'legend-section';
-        
+
         // Rendere la sezione collassabile
         const sezioneHTML = `
             <div class="legend-section-header">
-                <h5>${titolo}</h5>
+                <div style="display: flex; align-items: center;">
+                    ${iconaHtml ? `<div class="legend-icon-wrapper" style="margin-right: var(--sp-sm);">${iconaHtml}</div>` : ''}
+                    <h5>${titolo}</h5>
+                </div>
                 <span class="collapse-icon material-icons">expand_less</span>
             </div>
             <div class="legend-data">${contenuto}</div>
         `;
-        
+
         nuovaSezione.innerHTML = sezioneHTML;
-        
+
         // Aggiungi evento per collassare/espandere
         const headerElement = nuovaSezione.querySelector('.legend-section-header');
         headerElement.addEventListener('click', () => {
@@ -442,10 +445,7 @@ class GeoAnalysisApp {
         const distanzaMedia = puntiUTM && puntiUTM.length > 0 ? sommaDistanze / puntiUTM.length : 0;
 
         return `
-            <div style="display: flex; align-items: center; margin-bottom: var(--sp-sm)">
-                <div class="legend-icon-wrapper" style="margin-right: var(--sp-sm);">${iconHtml}</div>
-                <p class="coordinate">${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E</p>
-            </div>
+            <p class="coordinate">${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E</p>
             ${puntiUTM && puntiUTM.length > 0 ? `
                 <table class="nni-table">
                     <tr><td>Punti considerati</td><td>${puntiUTM.length}</td></tr>
@@ -575,7 +575,8 @@ class GeoAnalysisApp {
                     html: iconHtml,
                     popup: `<strong>Centro del cerchio di Canter</strong><div class="coordinate">${latCanter.toFixed(4)}°N, ${lonCanter.toFixed(4)}°E</div>`,
                     tooltip: `Centro Cerchio di Canter\n${latCanter.toFixed(4)}°N, ${lonCanter.toFixed(4)}°E`,
-                    permanentTooltip: mostraEtichette
+                    permanentTooltip: mostraEtichette,
+                    iconAnchor: [10, 10] // Centro dell'icona circolare
                 });
 
                 this.mapManager.addCircle(latCanter, lonCanter, canter.raggio, {
@@ -588,12 +589,15 @@ class GeoAnalysisApp {
 
                 // Calcola i dati personalizzati per l'infobox
                 const raggioCanter = canter.raggio;
+                // Calcolo dell'area del cerchio in metri quadrati
+                const areaCerchioCanter = Math.PI * Math.pow(raggioCanter, 2);
 
                 let puntiDentro = 0;
 
                 puntiUTM.forEach(p => {
                     const distFromCenter = Math.hypot(p.x - canter.x, p.y - canter.y);
-                    if (distFromCenter <= raggioCanter) {
+                    const TOLERANCE=1e-9;
+                    if (distFromCenter <= (raggioCanter + TOLERANCE)) {
                         puntiDentro++;
                     }
                 });
@@ -602,17 +606,15 @@ class GeoAnalysisApp {
 
                 // Usa il formato standard dell'infobox
                 const contenutoInfoboxCanter = `
-                    <div style="display: flex; align-items: center; margin-bottom: var(--sp-sm)">
-                        <div class="legend-icon-wrapper" style="margin-right: var(--sp-sm);">${iconHtml}</div>
-                        <p class="coordinate">${latCanter.toFixed(4)}°N, ${lonCanter.toFixed(4)}°E</p>
-                    </div>
+                    <p class="coordinate">${latCanter.toFixed(4)}°N, ${lonCanter.toFixed(4)}°E</p>
                     <table class="nni-table">
                         <tr><td>Punti considerati</td><td>${puntiUsati}</td></tr>
-                        <tr><td>Raggio del cerchio</td><td>${formattaDistanzaKm(raggioCanter, 1)}</td></tr>
                         <tr><td>Punti nel cerchio</td><td>${puntiDentro} (${percentualeDentro.toFixed(1)}%)</td></tr>
+                        <tr><td>Raggio del cerchio</td><td>${formattaDistanzaKm(raggioCanter, 1)}</td></tr>
+                        <tr><td>Area del cerchio</td><td>${(areaCerchioCanter / 1000000).toFixed(2)} km²</td></tr>
                     </table>
                 `;
-                this.aggiornaInfoboxBase('Cerchio di Canter', contenutoInfoboxCanter);
+                this.aggiornaInfoboxBase('Cerchio di Canter', contenutoInfoboxCanter, iconHtml);
             }
 
             // Centro Probabile Residenza (CPR)
@@ -638,7 +640,8 @@ class GeoAnalysisApp {
                         html: iconHtml,
                         popup: `<strong>Centro Probabile Residenza</strong><div class="coordinate">${latCPR.toFixed(4)}°N, ${lonCPR.toFixed(4)}°E</div><em>${tuttiPunti.length} eventi considerati</em>`,
                         tooltip: `Centro Probabile Residenza\n${latCPR.toFixed(4)}°N, ${lonCPR.toFixed(4)}°E`,
-                        permanentTooltip: mostraEtichette
+                        permanentTooltip: mostraEtichette,
+                        iconAnchor: [10, 10] // Centro dell'icona circolare
                     });
 
                     // Calcola e aggiungi il cerchio di deviazione standard
@@ -654,14 +657,14 @@ class GeoAnalysisApp {
                             popup: `<strong>Circonferenza CPR</strong><div class="coordinate">Raggio: ${formattaDistanzaKm(raggio, 1)} km</div>`
                         });
                     }
-                    this.aggiornaInfoboxBase('Centro Probabile Residenza', this.creaContenutoInfobox('Centro Probabile Residenza', iconHtml, getCSSVar('--color-neutral'), centroCPR, tuttiPunti));
+                    this.aggiornaInfoboxBase('Centro Probabile Residenza', this.creaContenutoInfobox('Centro Probabile Residenza', iconHtml, getCSSVar('--color-neutral'), centroCPR, tuttiPunti), iconHtml);
                 }
             }
 
             // Convex Hull
             if (mostraCHP && delittiAttivi.length >= 3) {
                 const puntiUTM = delittiAttivi.map(p => ({ x: p.x, y: p.y }));
-                const hull = algoritmiGeometrici.convexHull(puntiUTM);
+                const { punti: hull, area, perimetro } = algoritmiGeometrici.convexHull(puntiUTM);
                 const latlngs = hull.map(({ x, y }) => {
                     const [lon, lat] = proj4('EPSG:32632', 'EPSG:4326', [x, y]);
                     return [lat, lon];
@@ -671,10 +674,43 @@ class GeoAnalysisApp {
                     color: 'black',
                     weight: 2,
                     fillOpacity: 0.1,
+                    opacity: 0.8,
                     popup: `Convex Hull (${hull.length} vertici)`
                 });
 
-                // Infobox CHP da implementare
+                // Creazione icona specifica per Convex Hull
+                const iconaHtmlCHP = `
+                    <div style="
+                        width: 20px;
+                        height: 20px;
+                        border: 2px solid black;
+                        background: rgba(0, 0, 0, 0.1);
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                        font-weight: bold;
+                        font-size: 8px;
+                        color: black;">CHP</div>
+                `;
+
+                const contenutoInfoboxCHP = `
+                    <p class="coordinate">${delittiAttivi.length} punti considerati</p>
+                    <table class="nni-table">
+                        <tr>
+                            <td>Vertici poligono</td>
+                            <td>${hull.length}</td>
+                        </tr>
+                        <tr>
+                            <td>Area</td>
+                            <td>${(area / 1000000).toFixed(2)} km²</td>
+                        </tr>
+                        <tr>
+                            <td>Perimetro</td>
+                            <td>${formattaDistanzaKm(perimetro, 2)}</td>
+                        </tr>
+                    </table>
+                `;
+                this.aggiornaInfoboxBase('Convex Hull', contenutoInfoboxCHP, iconaHtmlCHP);
             }
 
             // Mean Interpoint Distance (MID)
@@ -702,32 +738,48 @@ class GeoAnalysisApp {
 
                 // Usa il formato personalizzato dell'infobox
                 const infoboxMID = `
-                    <div style="display: flex; align-items: center; margin-bottom: var(--sp-sm)">
-                        <div class="legend-icon-wrapper" style="margin-right: var(--sp-sm);">${iconHtml}</div>
-                        <p class="coordinate">${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E</p>
-                    </div>
+                    <p class="coordinate">${delittiAttivi.length} punti analizzati</p>
                     <table class="nni-table">
-                        <tr>
-                            <td>Punti considerati</td>
-                            <td>${delittiAttivi.length}</td>
-                        </tr>
                         <tr>
                             <td>Valore MID</td>
                             <td>${formattaDistanzaKm(midValue, 1)}</td>
                         </tr>
                     </table>
                 `;
-                this.aggiornaInfoboxBase('Mean Interpoint Distance', infoboxMID);
+                this.aggiornaInfoboxBase('Mean Interpoint Distance', infoboxMID, iconHtml);
             }
 
             // Nearest Neighbor Index (NNI)
             if (mostraNNI && delittiAttivi.length >= 2) {
                 const risultatoNNI = algoritmiGeometrici.nearestNeighborIndex(delittiAttivi);
+                
+                // Funzione per determinare il colore in base al valore NNI
+                const getNNIColor = (nniValue) => {
+                    // Gradiente di colori: rosso (clustering) -> verde (casuale) -> blu (dispersione)
+                    if (nniValue < 0.5) {
+                        // Da rosso intenso (0) a rosso chiaro (0.5)
+                        const intensita = Math.max(0, nniValue) / 0.5;
+                        return `rgba(255, ${Math.round(intensita * 100)}, 0, 0.8)`;
+                    } else if (nniValue < 1.0) {
+                        // Da rosso chiaro (0.5) a verde (1.0)
+                        const intensita = (nniValue - 0.5) / 0.5;
+                        return `rgba(${Math.round(255 * (1 - intensita))}, ${Math.round(100 + intensita * 155)}, 0, 0.8)`;
+                    } else if (nniValue < 1.5) {
+                        // Da verde (1.0) a blu chiaro (1.5)
+                        const intensita = (nniValue - 1.0) / 0.5;
+                        return `rgba(0, ${Math.round(255 * (1 - intensita))}, ${Math.round(intensita * 255)}, 0.8)`;
+                    } else {
+                        // Da blu chiaro (1.5) a blu scuro (2+)
+                        const intensita = Math.min(1, (nniValue - 1.5) / 0.5);
+                        return `rgba(0, 0, ${Math.round(200 + intensita * 55)}, 0.8)`;
+                    }
+                };
 
-                // Colore specifico per NNI
-                const nniColor = getCSSVar('--color-purple');
-                const nniColorLight = getCSSVar('--color-purple-light');
-
+                // Ottieni il colore in base al valore NNI
+                const nniColor = getNNIColor(risultatoNNI.indice);
+                // Usa un colore più chiaro per i riempimenti
+                const nniColorLight = nniColor.replace('0.8', '0.2');
+                
                 // Linee ai punti più vicini
                 delittiAttivi.forEach(p1 => {
                     let vicino = null;
@@ -748,29 +800,78 @@ class GeoAnalysisApp {
                         const [lon2, lat2] = proj4('EPSG:32632', 'EPSG:4326', [vicino.x, vicino.y]);
 
                         this.mapManager.addLine([lat1, lon1], [lat2, lon2], {
-                            color: nniColor,
-                            weight: 3,
-                            opacity: 0.8,
+                            color: 'black',  // Linee sempre nere come richiesto
+                            weight: 2,
+                            opacity: 0.7,
                             popup: `Distanza vicino più prossimo: ${formattaDistanzaKm(distanzaMinima, 1)} km`
                         });
                     }
                 });
 
+                // Creazione gradiente per la legenda
+                const gradientStops = [
+                    { value: 0, color: 'rgba(255, 0, 0, 0.9)', label: 'Cluster Forte' },
+                    { value: 0.5, color: 'rgba(255, 100, 0, 0.9)', label: 'Cluster Moderato' },
+                    { value: 1.0, color: 'rgba(0, 255, 0, 0.9)', label: 'Distribuzione Casuale' },
+                    { value: 1.5, color: 'rgba(0, 100, 255, 0.9)', label: 'Dispersione Moderata' },
+                    { value: 2.0, color: 'rgba(0, 0, 255, 0.9)', label: 'Dispersione Forte' }
+                ];
+                
+                // Crea il gradiente CSS
+                const gradientCSS = gradientStops.map(stop => `${stop.color} ${(stop.value / 2.5) * 100}%`).join(', ');
+                
+                // Calcolo percentuale posizione dell'indicatore sul gradiente
+                const indicatorPosition = Math.min(100, Math.max(0, (risultatoNNI.indice / 2.5) * 100));
+                
                 const iconHtml = creaIconaCerchio('NNI', '--color-purple', '--bg-purple-light', 20, 8);
 
                 // Usa il formato personalizzato dell'infobox
                 const baricentro = algoritmiGeometrici.baricentro(delittiAttivi);
                 const [lon, lat] = proj4('EPSG:32632', 'EPSG:4326', [baricentro.x, baricentro.y]);
                 
+                // Calcola la densità in modo più intuitivo (punti per km²)
+                const densitaPerKmq = risultatoNNI.densita * 1000000; // Conversione da m² a km²
+                const densitaFormattata = densitaPerKmq < 0.1 ? 
+                    densitaPerKmq.toExponential(2) : 
+                    densitaPerKmq.toFixed(2);
+                
                 const infoboxNNI = `
-                    <div style="display: flex; align-items: center; margin-bottom: var(--sp-sm)">
-                        <div class="legend-icon-wrapper" style="margin-right: var(--sp-sm);">${iconHtml}</div>
-                        <p class="coordinate">${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E</p>
+                    <p class="coordinate">${delittiAttivi.length} punti analizzati</p>
+                    <div style="display: flex; margin-bottom: var(--sp-sm); align-items: center;">
+                        <div style="
+                            width: 20px; 
+                            height: 150px; 
+                            margin-right: 10px;
+                            background: linear-gradient(to bottom, ${gradientCSS});
+                            position: relative;
+                            border: 1px solid #555;">
+                            <!-- Indicatore del valore NNI -->
+                            <div style="
+                                position: absolute;
+                                left: -4px;
+                                right: -4px;
+                                height: 2px;
+                                background: black;
+                                top: ${100 - indicatorPosition}%;">
+                            </div>
+                        </div>
+                        <table class="nni-table" style="margin: 0;">
+                            ${gradientStops.map(stop => `
+                                <tr>
+                                    <td style="padding: 2px; ${Math.abs(stop.value - risultatoNNI.indice) < 0.25 ? 'font-weight: bold;' : ''}">
+                                        ${stop.label}
+                                    </td>
+                                    <td style="padding: 2px; ${Math.abs(stop.value - risultatoNNI.indice) < 0.25 ? 'font-weight: bold;' : ''}">
+                                        ${stop.value.toFixed(1)}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </table>
                     </div>
                     <table class="nni-table">
                         <tr>
                             <td>Valore NNI</td>
-                            <td><span style="color: ${risultatoNNI.indice < 0.8 ? getCSSVar('--color-danger') : risultatoNNI.indice > 1.2 ? getCSSVar('--color-primary') : getCSSVar('--color-success')}">${risultatoNNI.indice.toFixed(2)}</span></td>
+                            <td><span style="color: ${nniColor}; font-weight: bold;">${risultatoNNI.indice.toFixed(2)}</span></td>
                         </tr>
                         <tr>
                             <td>Distanza media osservata</td>
@@ -780,19 +881,22 @@ class GeoAnalysisApp {
                             <td>Distanza attesa casuale</td>
                             <td>${(risultatoNNI.distanzaCasuale / 1000).toFixed(2)} km</td>
                         </tr>
+                        <!-- Parte commentata relativa alla densità dei punti
                         <tr>
                             <td>Densità punti</td>
-                            <td>${(risultatoNNI.densita * 1000000).toFixed(2)}/km²</td>
+                            <td>${densitaFormattata} punti/km²</td>
                         </tr>
+                        -->
                         <tr>
                             <td>Area analizzata</td>
                             <td>${(risultatoNNI.areaTotale / 1000000).toFixed(2)} km²</td>
                         </tr>
                     </table>
                 `;
-                this.aggiornaInfoboxBase('Nearest Neighbour Index', infoboxNNI);
+                this.aggiornaInfoboxBase('Nearest Neighbour Index', infoboxNNI, iconHtml);
 
-                // Cerchio con raggio pari alla distanza media osservata
+                // Commento la creazione del cerchio NNI come richiesto
+                /*
                 this.mapManager.addCircle(lat, lon, risultatoNNI.distanzaMedia, {
                     fillColor: nniColorLight,
                     fillOpacity: 0.2,
@@ -800,6 +904,7 @@ class GeoAnalysisApp {
                     weight: 2,
                     popup: `Distanza media tra vicini: ${(risultatoNNI.distanzaMedia / 1000).toFixed(2)} km`
                 });
+                */
             }
         }
 
@@ -812,7 +917,8 @@ class GeoAnalysisApp {
                 popup: generaPopupHtml(punto, centers),
                 tooltip: punto.label,
                 permanentTooltip: mostraEtichette,
-                className: mostraEtichette ? 'permanent-tooltip' : ''
+                className: mostraEtichette ? 'permanent-tooltip' : '',
+                iconAnchor: [12, 12] // Punto di ancoraggio al centro dell'icona
             });
         });
 
@@ -822,7 +928,8 @@ class GeoAnalysisApp {
                 popup: generaPopupHtml(punto, centers),
                 tooltip: punto.label,
                 permanentTooltip: mostraEtichette,
-                className: mostraEtichette ? 'permanent-tooltip' : ''
+                className: mostraEtichette ? 'permanent-tooltip' : '',
+                iconAnchor: [12, 24] // Punto di ancoraggio alla base dell'icona location_on
             });
         });
 
@@ -832,7 +939,8 @@ class GeoAnalysisApp {
                 popup: generaPopupHtml(punto, centers),
                 tooltip: punto.label,
                 permanentTooltip: mostraEtichette,
-                className: mostraEtichette ? 'permanent-tooltip' : ''
+                className: mostraEtichette ? 'permanent-tooltip' : '',
+                iconAnchor: [12, 12] // Punto di ancoraggio al centro dell'icona
             });
         });
 
@@ -842,7 +950,8 @@ class GeoAnalysisApp {
                 popup: generaPopupHtml(punto, centers),
                 tooltip: punto.label,
                 permanentTooltip: mostraEtichette,
-                className: mostraEtichette ? 'permanent-tooltip' : ''
+                className: mostraEtichette ? 'permanent-tooltip' : '',
+                iconAnchor: [12, 12] // Punto di ancoraggio al centro dell'icona
             });
         });
     }
@@ -883,10 +992,11 @@ class GeoAnalysisApp {
             html: htmlIcona,
             popup: `<strong>${titolo}</strong><div class="coordinate">${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E</div><em>${puntiUTM.length} delitti considerati</em>`,
             tooltip: `${titolo}\n${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E`,
-            permanentTooltip: mostraEtichette
+            permanentTooltip: mostraEtichette,
+            iconAnchor: [10, 10] // Centro dell'icona circolare
         });
 
-        this.aggiornaInfoboxBase(titolo, this.creaContenutoInfobox(titolo, htmlIcona, getCSSVar(coloreVar), puntoCentro, puntiUTM));
+        this.aggiornaInfoboxBase(titolo, this.creaContenutoInfobox(titolo, htmlIcona, getCSSVar(coloreVar), puntoCentro, puntiUTM), htmlIcona);
     }
 
     configuraSelezionaDeseleziona() {
@@ -896,7 +1006,7 @@ class GeoAnalysisApp {
                 const checkboxes = document.querySelectorAll(`#${targetId} input[type="checkbox"]`);
                 checkboxes.forEach(checkbox => {
                     checkbox.checked = true;
-                    
+
                     // Gestione manuale per i morti collaterali
                     if (targetId === 'omicidi-collaterali-checkbox') {
                         const label = checkbox.dataset.label;
@@ -913,7 +1023,7 @@ class GeoAnalysisApp {
                 const checkboxes = document.querySelectorAll(`#${targetId} input[type="checkbox"]`);
                 checkboxes.forEach(checkbox => {
                     checkbox.checked = false;
-                    
+
                     // Gestione manuale per i morti collaterali
                     if (targetId === 'omicidi-collaterali-checkbox') {
                         const label = checkbox.dataset.label;

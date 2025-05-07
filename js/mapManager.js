@@ -80,7 +80,7 @@ class MapManager {
             html: options.html || '',
             className: '',
             iconSize: [30, 30],
-            iconAnchor: [15, 30],
+            iconAnchor: options.iconAnchor || [15, 30],
         });
         const marker = L.marker([lat, lon], { icon });
         if (options.popup) {
@@ -168,6 +168,7 @@ class MapManager {
             weight: options.weight || 2,
             fillColor: options.fillColor || '#000',
             fillOpacity: options.fillOpacity || 0.1,
+            opacity: options.opacity || 1.0,
         });
         if (options.popup) {
             polygon.bindPopup(options.popup);

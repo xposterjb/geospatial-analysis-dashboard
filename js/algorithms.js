@@ -195,7 +195,7 @@ const algoritmiGeometrici = {
                     punti[i].x - punti[j].x,
                     punti[i].y - punti[j].y
                 );
-                
+
                 // Se la distanza corrente è maggiore della massima distanza trovata finora...
                 if (dist > maxDist) {
                     maxDist = dist;
@@ -279,7 +279,7 @@ const algoritmiGeometrici = {
 
         // Calcola l'orientamento di 3 punti (prodotto vettoriale 2D).
         const orientamento = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
-        
+
         const bordoInferiore = [];
         for (const p of puntiOrdinati) {
             // Rimuove i punti che creano concavità
@@ -302,7 +302,21 @@ const algoritmiGeometrici = {
         bordoSuperiore.pop();
         bordoInferiore.pop();
 
-        return bordoInferiore.concat(bordoSuperiore);
+        const hull = bordoInferiore.concat(bordoSuperiore);
+
+        // Calcola l'area del poligono
+        const area = Math.abs(hull.reduce((acc, p, i) => {
+            const nextP = hull[(i + 1) % hull.length];
+            return acc + (p.x * nextP.y - nextP.x * p.y);
+        }, 0)) / 2;
+
+        // Calcolo del perimetro
+        const perimetro = hull.reduce((acc, p, i) => {
+            const nextP = hull[(i + 1) % hull.length];
+            return acc + Math.hypot(nextP.x - p.x, nextP.y - p.y);
+        }, 0);
+
+        return { punti: hull, area, perimetro };
     },
 
     // Calcola la distanza media tra tutte le coppie uniche di punti
@@ -341,7 +355,7 @@ const algoritmiGeometrici = {
         // Calcola l'area della bounding box che contiene tutti i punti
         // Garantisce un'area minima per evitare divisioni per zero
         const areaTotale = Math.max((Math.max(...coordinateX) - Math.min(...coordinateX)) * (Math.max(...coordinateY) - Math.min(...coordinateY)), 100);
-        
+
         const sommaDistanze = punti.reduce((somma, p1, i) => {
             const distanzaVicino = Math.min(...punti.filter((_, j) => j !== i).map(p2 => {
                 const deltaX = p1.x - p2.x;
