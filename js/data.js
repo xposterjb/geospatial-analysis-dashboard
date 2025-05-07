@@ -109,7 +109,7 @@ const rawData = {
         [43.6497, 10.3239, 'Camp Darby'],
 
         // Bar frequentato da alcuni dei CdM
-        [43.7338035, 11.2065226, 'Bar Centrale San Casciano'],
+        //[, , 'Bar Centrale San Casciano'],
 
         // Cinema frequentato da Bar.Loc. e Ant. LoB.
         [43.7806324, 11.0963065, 'Cinema Giardino Michelacci'],
