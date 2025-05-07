@@ -1,243 +1,403 @@
 <!DOCTYPE html>
 <html lang="it">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Analisi Geospaziale Delitti MdF</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Roboto+Mono&display=swap"
-      rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
-    <link rel="stylesheet" href="style.css" />
-  </head>
-  <body>
-    <div class="dashboard">
-      <!-- Barra laterale di controllo -->
-      <aside class="controls" aria-label="Filtri mappa">
-        <h2>
-          <span class="material-icons" aria-hidden="true">tune</span>
-          Filtri
-        </h2>
-        <!-- Delitti MdF -->
-        <details class="control-group accordion" aria-label="Filtri Delitti MdF">
-          <summary>
-            <span class="material-icons" aria-hidden="true">warning</span>
-            Delitti MdF
-          </summary>
-          <div id="delitti-checkbox"></div>
-        </details>
-        <!-- Morti e Omicidi collaterali -->
-        <details class="control-group accordion" aria-label="Filtri Omicidi Collaterali">
-          <summary>
-            <span class="material-icons" aria-hidden="true">warning</span>
-            Morti Collaterali
-          </summary>
-          <div id="omicidi-collaterali-checkbox"></div>
-        </details>
-        <!-- Abitazioni sospettati -->
-        <details class="control-group accordion" aria-label="Filtri Abitazioni Sospettati">
-          <summary>
-            <span class="material-icons" aria-hidden="true">home</span>
-            Abitazioni Sospettati
-          </summary>
-          <div id="abitazioni-sospettati-checkbox"></div>
-        </details>
-        <!-- Abitazioni vittime -->
-        <details class="control-group accordion" aria-label="Filtri Abitazioni Vittime">
-          <summary>
-            <span class="material-icons" aria-hidden="true">home</span>
-            Abitazioni Vittime
-          </summary>
-          <div id="abitazioni-vittime-checkbox"></div>
-        </details>
-        <!-- Punti di interesse -->
-        <details class="control-group accordion" aria-label="Filtri Punti di Interesse">
-          <summary>
-            <span class="material-icons" aria-hidden="true">location_on</span>
-            Punti Interesse
-          </summary>
-          <div id="punti-interesse-checkbox"></div>
-        </details>
-        <!-- Timeline -->
-        <details class="control-group accordion" aria-label="Filtro Timeline">
-          <summary>
-            <span class="material-icons" aria-hidden="true">timeline</span>
-            Timeline: <span id="anno-corrente" aria-live="polite">1985</span>
-          </summary>
-          <div class="slider-container">
-            <div class="slider-label">
-              <span id="min-anno">1968</span>
-              <input type="range" id="anno-slider" min="1968" max="2005" value="1985" />
-              <span id="max-anno">2025</span>
-            </div>
+
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Analisi Geospaziale Delitti MdF</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Roboto+Mono&display=swap"
+    rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+
+<body>
+  <div class="dashboard">
+    <!-- Barra laterale di controllo -->
+    <aside class="controls" aria-label="Filtri mappa">
+      <h2>
+        <span class="material-icons" aria-hidden="true">tune</span>
+        Filtri
+      </h2>
+
+      <!-- Delitti MdF -->
+      <details class="control-group accordion" aria-label="Filtri Delitti MdF">
+        <summary>
+          <span class="material-icons" aria-hidden="true">warning</span>
+          Delitti MdF
+        </summary>
+        <div class="checkbox-header">
+          <button class="btn-mini select-all" data-target="delitti-checkbox">Seleziona tutti</button>
+          <button class="btn-mini deselect-all" data-target="delitti-checkbox">Deseleziona tutti</button>
+        </div>
+        <div id="delitti-checkbox"></div>
+      </details>
+
+      <!-- Morti e Omicidi collaterali -->
+      <details class="control-group accordion" aria-label="Filtri Omicidi Collaterali">
+        <summary>
+          <span class="material-icons" aria-hidden="true">warning</span>
+          Morti Collaterali
+        </summary>
+        <div class="checkbox-header">
+          <button class="btn-mini select-all" data-target="omicidi-collaterali-checkbox">Seleziona tutti</button>
+          <button class="btn-mini deselect-all" data-target="omicidi-collaterali-checkbox">Deseleziona tutti</button>
+        </div>
+        <div id="omicidi-collaterali-checkbox"></div>
+      </details>
+
+      <!-- Abitazioni sospettati -->
+      <details class="control-group accordion" aria-label="Filtri Abitazioni Sospettati">
+        <summary>
+          <span class="material-icons" aria-hidden="true">home</span>
+          Abitazioni Sospettati
+        </summary>
+        <div class="checkbox-header">
+          <button class="btn-mini select-all" data-target="abitazioni-sospettati-checkbox">Seleziona tutti</button>
+          <button class="btn-mini deselect-all" data-target="abitazioni-sospettati-checkbox">Deseleziona tutti</button>
+        </div>
+        <div id="abitazioni-sospettati-checkbox"></div>
+      </details>
+
+      <!-- Abitazioni vittime -->
+      <details class="control-group accordion" aria-label="Filtri Abitazioni Vittime">
+        <summary>
+          <span class="material-icons" aria-hidden="true">home</span>
+          Abitazioni Vittime
+        </summary>
+        <div class="checkbox-header">
+          <button class="btn-mini select-all" data-target="abitazioni-vittime-checkbox">Seleziona tutti</button>
+          <button class="btn-mini deselect-all" data-target="abitazioni-vittime-checkbox">Deseleziona tutti</button>
+        </div>
+        <div id="abitazioni-vittime-checkbox"></div>
+      </details>
+
+      <!-- Punti di interesse -->
+      <details class="control-group accordion" aria-label="Filtri Punti di Interesse">
+        <summary>
+          <span class="material-icons" aria-hidden="true">location_on</span>
+          Punti d'Interesse
+        </summary>
+        <div class="checkbox-header">
+          <button class="btn-mini select-all" data-target="punti-interesse-checkbox">Seleziona tutti</button>
+          <button class="btn-mini deselect-all" data-target="punti-interesse-checkbox">Deseleziona tutti</button>
+        </div>
+        <div id="punti-interesse-checkbox"></div>
+      </details>
+
+      <!-- Timeline -->
+      <details class="control-group accordion" aria-label="Filtro Timeline">
+        <summary>
+          <span class="material-icons" aria-hidden="true">timeline</span>
+          Timeline: <span id="anno-corrente" aria-live="polite">1985</span>
+        </summary>
+        <div class="slider-container">
+          <label for="anno-slider" class="timeline-title">Filtra per anno</label>
+          <p class="timeline-description">Mostra solo gli eventi avvenuti fino all'anno selezionato.</p>
+          <div class="slider-label">
+            <span id="min-anno">1968</span>
+            <input type="range" id="anno-slider" min="1968" max="2005" value="1985" />
+            <span id="max-anno">2025</span>
           </div>
-        </details>
-        <!-- Tipo analisi -->
-        <details class="control-group accordion" aria-label="Selezione tipo di analisi">
-          <summary>
-            <span class="material-icons" aria-hidden="true">analytics</span>
-            Tipo Analisi
-          </summary>
-          <div class="checkbox-group">
-            <label
-              title="Calcola il baricentro geometrico (media delle coordinate) dei delitti selezionati. Chiamato anche Centroide.">
-              <input type="checkbox" id="analisi-baricentro" checked />
-              Baricentro
-            </label>
-            <label title="Trova il punto che minimizza la somma delle distanze dai delitti selezionati.">
-              <input type="checkbox" id="analisi-fermat" />
-              CMD - Punto di Fermat
-            </label>
-            <label
-              title="Individua il centro del cerchio che ha come diametro la linea che congiunge i due delitti più distanti.">
-              <input type="checkbox" id="analisi-canter-center" />
-              Centro del Cerchio di Canter
-            </label>
-            <label
-              title="Stima la probabile zona di residenza del colpevole pesando i punti in base a distanza, tempo e tipologia.">
-              <input type="checkbox" id="analisi-cpr" />
-              Centro di Probabile Residenza (BETA)
-            </label>
-            <label title="Disegna il poligono convesso minimo che racchiude i delitti attivi.">
-              <input type="checkbox" id="analisi-chp" />
-              Convex Hull (CHP)
-            </label>
-          </div>
-        </details>
-        <!-- Etichette -->
-        <details class="control-group accordion" aria-label="Mostra etichette">
-          <summary>
-            <span class="material-icons" aria-hidden="true">label</span>
-            Etichette
-          </summary>
-          <label>
-            <input type="checkbox" id="mostra-etichette" />
-            Mostra tutte le etichette
+        </div>
+      </details>
+
+      <!-- Tipo analisi -->
+      <details class="control-group accordion" aria-label="Selezione tipo di analisi">
+        <summary>
+          <span class="material-icons" aria-hidden="true">analytics</span>
+          Tipo Analisi
+        </summary>
+        <div class="checkbox-group">
+          <label
+            title="Calcola il baricentro geometrico (media delle coordinate) dei delitti selezionati. Chiamato anche Centroide.">
+            <input type="checkbox" id="analisi-baricentro" checked />
+            Baricentro
           </label>
-        </details>
-        <section class="control-group accordion poi-card" aria-label="Aggiungi nuovo punto di interesse">
-          <div class="section-header">
-            <span class="material-icons" aria-hidden="true">add_location_alt</span>
-            Nuovo Punto di Interesse
-          </div>
-          <div class="poi-form">
-            <button id="aggiungi-punto-btn" class="btn btn-primary" type="button">
-              <span class="material-icons" aria-hidden="true">gps_fixed</span>
-              Seleziona posizione
-            </button>
-            <div id="aggiungi-info" class="poi-info" hidden>
-              <p class="poi-hint">
-                <span class="material-icons" aria-hidden="true">info</span>
-                Clicca sulla mappa per selezionare il punto.
-              </p>
-              <input type="text" id="nome-punto" class="poi-input" placeholder="Nome del punto" hidden />
+          <label title="Calcola la mediana delle coordinate dei delitti selezionati.">
+            <input type="checkbox" id="analisi-mediana" />
+            Mediana Coordinate
+          </label>
+          <label title="Trova il punto che minimizza la somma delle distanze dai delitti selezionati.">
+            <input type="checkbox" id="analisi-fermat" />
+            Centro di Minima Distanza
+          </label>
+          <label
+            title="Individua il centro del cerchio che ha come diametro la linea che congiunge i due delitti più distanti.">
+            <input type="checkbox" id="analisi-canter-center" />
+            Cerchio di Canter
+          </label>
+          <label
+            title="Stima la probabile zona di residenza del colpevole pesando i punti in base a distanza, tempo e tipologia.">
+            <input type="checkbox" id="analisi-cpr" />
+            Centro di Probabile Residenza
+          </label>
+          <label title="Disegna il poligono convesso minimo che racchiude i delitti attivi.">
+            <input type="checkbox" id="analisi-chp" />
+            Convex Hull (CHP)
+          </label>
+          <label title="Calcola la distanza media tra tutte le coppie di punti.">
+            <input type="checkbox" id="analisi-mid" />
+            Mean Interpoint Distance (MID)
+        </label>
+        <label title="Misura il grado di raggruppamento o dispersione spaziale dei delitti.">
+          <input type="checkbox" id="analisi-nni" />
+          Nearest Neighbour Index (NNI)
+      </label>
+        </div>
+      </details>
+
+      <!-- Etichette -->
+      <details class="control-group accordion" aria-label="Mostra etichette">
+        <summary>
+          <span class="material-icons" aria-hidden="true">label</span>
+          Etichette
+        </summary>
+        <label>
+          <input type="checkbox" id="mostra-etichette" />
+          Mostra tutte le etichette
+        </label>
+      </details>
+      <section class="control-group accordion poi-card" aria-label="Aggiungi nuovo punto di interesse">
+        <div class="section-header">
+          <span class="material-icons" aria-hidden="true">add_location_alt</span>
+          Nuovo Punto di Interesse
+        </div>
+        <div class="poi-form">
+          <button id="aggiungi-punto-btn" class="btn btn-primary" type="button">
+            <span class="material-icons" aria-hidden="true">gps_fixed</span>
+            Seleziona posizione
+          </button>
+          <div id="aggiungi-info" class="poi-info" hidden>
+            <p class="poi-hint">
+              <span class="material-icons" aria-hidden="true">info</span>
+              Clicca sulla mappa per selezionare il punto.
+            </p>
+            <input type="text" id="nome-punto" class="poi-input" placeholder="Nome del punto" hidden />
+            <div class="poi-actions">
               <button id="salva-punto-btn" class="btn btn-secondary" type="button">
                 <span class="material-icons" aria-hidden="true">check</span>
                 Salva
               </button>
+              <button id="annulla-punto-btn" class="btn btn-danger" type="button">
+                <span class="material-icons" aria-hidden="true">close</span>
+                Annulla
+              </button>
             </div>
           </div>
-        </section>
-        <!-- Legenda -->
-        <section class="control-group accordion legend">
-          <div class="section-header">
-            <span class="material-icons" aria-hidden="true">menu</span>
-            Legenda
+        </div>
+      </section>
+
+
+      <details class="control-group accordion" aria-label="Configurazione Parametri CPR">
+        <summary>
+          <span class="material-icons" aria-hidden="true">settings</span> Configurazione CPR
+        </summary>
+        <div class="config-sliders-container">
+          <div class="config-slider-item">
+            <label for="journey-radius-slider" class="config-label-title">Raggio di azione (km)</label>
+            <p class="config-description">Soglia di distanza per il decadimento del peso; eventi più lontani pesano meno.</p>
+            <div class="slider-wrapper">
+              <input type="range" id="journey-radius-slider" min="1" max="20" step="0.5" class="config-slider" aria-labelledby="journey-radius-slider-label">
+              <span id="journey-radius-value" class="slider-value">5</span>
+            </div>
           </div>
-          <ul>
-            <li class="legend-item">
-              <div class="legend-icon-wrapper">
-                <span class="material-icons" style="color: var(--color-danger);">warning</span>
-              </div>
-              Delitto Principale
-            </li>
-            <li class="legend-item">
-              <div class="legend-icon-wrapper">
-                <span class="material-icons" style="color: var(--color-warning);">warning</span>
-              </div>
-              Omicidio Collaterale
-            </li>
-            <li class="legend-item">
-              <div class="legend-icon-wrapper">
-                <span class="material-icons" style="color: var(--color-neutral);">home</span>
-              </div>
-              Abitazione Sospettato
-            </li>
-            <li class="legend-item">
-              <div class="legend-icon-wrapper">
-                <span class="material-icons" style="color: var(--color-primary-dark);">home</span>
-              </div>
-              Abitazione Vittima
-            </li>
-            <li class="legend-item">
-              <div class="legend-icon-wrapper">
-                <span class="material-icons" style="color: var(--color-primary);">location_on</span>
-              </div>
-              Punto di Interesse
-            </li>
-            <li class="legend-item">
-              <div class="legend-icon-wrapper">
-                <div class="legend-marker special"
-                  style="background: var(--bg-success); border: 2px solid var(--color-success); color: var(--color-success);">
-                  B</div>
-              </div>
-              Baricentro
-            </li>
-            <li class="legend-item">
-              <div class="legend-icon-wrapper">
-                <div class="legend-marker special"
-                  style="background: var(--bg-warning); border: 2px solid var(--color-warning); color: var(--color-warning);">
-                  F</div>
-              </div>
-              CMD - Punto di Fermat
-            </li>
-            <li class="legend-item">
-              <div class="legend-icon-wrapper">
-                <div class="legend-marker special"
-                  style="background: var(--bg-accent); border: 2px solid var(--color-accent); color: var(--color-accent);">
-                  C</div>
-              </div>
-              Centro Canter
-            </li>
-            <li class="legend-item">
-              <div class="legend-icon-wrapper">
-                <div class="legend-marker canter-circle"></div>
-              </div>
-              Cerchio di Canter
-            </li>
-            <li class="legend-item">
-              <div class="legend-icon-wrapper">
-                <div class="legend-marker special"
-                  style="background: var(--bg-muted); border: 2px solid var(--border-strong); color: var(--color-muted);">
-                  CPR</div>
-              </div>
-              Centro Probabile Residenza
-            </li>
-            <li class="legend-item">
-              <div class="legend-icon-wrapper">
-                <svg width="20" height="20">
-                  <polygon points="2,2 18,2 18,18 2,18" fill="none" stroke="black" stroke-width="2" />
-                </svg>
-              </div>
-              Convex Hull (CHP)
-            </li>
-          </ul>
-        </section>
-      </aside>
-      <main id="map" tabindex="0" role="application" aria-label="Mappa interattiva"></main>
-    </div>
-    <!-- Librerie JavaScript -->
-    <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" defer></script>
-    <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js" defer></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js" defer></script>
-    <!-- Script dell’applicazione -->
-    <script src="js/config.js" defer></script>
-    <script src="js/data.js" defer></script>
-    <script src="js/algorithms.js" defer></script>
-    <script src="js/mapManager.js" defer></script>
-    <script src="js/geoAnalysis.js" defer></script>
-  </body>
+          <div class="config-slider-item">
+            <label for="time-decay-slider" class="config-label-title">Tasso decadimento temporale</label>
+            <p class="config-description">Velocità con cui il peso di un evento diminuisce nel tempo (0 = nessun decadimento).</p>
+            <div class="slider-wrapper">
+              <input type="range" id="time-decay-slider" min="0.01" max="1" step="0.01" class="config-slider" aria-labelledby="time-decay-slider-label">
+              <span id="time-decay-value" class="slider-value">0.25</span>
+            </div>
+          </div>
+          <div class="config-slider-item">
+            <label for="base-weight-slider" class="config-label-title">Peso delitti principali</label>
+            <p class="config-description">Importanza relativa assegnata ai delitti principali (max 1.0).</p>
+            <div class="slider-wrapper">
+              <input type="range" id="base-weight-slider" min="0.1" max="1.0" step="0.1" class="config-slider" aria-labelledby="base-weight-slider-label">
+              <span id="base-weight-value" class="slider-value">1.0</span>
+            </div>
+          </div>
+          <div class="config-slider-item">
+            <label for="collateral-weight-slider" class="config-label-title">Peso eventi collaterali</label>
+            <p class="config-description">Importanza relativa assegnata a morti/eventi collaterali (max 1.0).</p>
+            <div class="slider-wrapper">
+              <input type="range" id="collateral-weight-slider" min="0.1" max="1.0" step="0.1" class="config-slider" aria-labelledby="collateral-weight-slider-label">
+              <span id="collateral-weight-value" class="slider-value">0.3</span>
+            </div>
+          </div>
+          <div class="config-slider-item">
+            <label for="poi-weight-slider" class="config-label-title">Peso punti interesse</label>
+            <p class="config-description">Importanza relativa assegnata ai punti di interesse generici (max 1.0).</p>
+            <div class="slider-wrapper">
+              <input type="range" id="poi-weight-slider" min="0.1" max="1.0" step="0.1" class="config-slider" aria-labelledby="poi-weight-slider-label">
+              <span id="poi-weight-value" class="slider-value">0.3</span>
+            </div>
+          </div>
+          <div class="config-slider-item">
+            <label for="jw-weight-slider" class="config-label-title">Peso fattore distanza (JW)</label>
+            <p class="config-description">Peso della componente "distanza" nel calcolo combinato del CPR.</p>
+            <div class="slider-wrapper">
+              <input type="range" id="jw-weight-slider" min="0" max="1" step="0.01" class="config-slider" aria-labelledby="jw-weight-slider-label">
+              <span id="jw-weight-value" class="slider-value">0.333</span>
+            </div>
+          </div>
+          <div class="config-slider-item">
+            <label for="dt-weight-slider" class="config-label-title">Peso fattore tempo (DT)</label>
+            <p class="config-description">Peso della componente "tempo" nel calcolo combinato del CPR.</p>
+            <div class="slider-wrapper">
+              <input type="range" id="dt-weight-slider" min="0" max="1" step="0.01" class="config-slider" aria-labelledby="dt-weight-slider-label">
+              <span id="dt-weight-value" class="slider-value">0.333</span>
+            </div>
+          </div>
+          <div class="config-slider-item">
+            <label for="pb-weight-slider" class="config-label-title">Peso fattore tipo (PB)</label>
+            <p class="config-description">Peso della componente "tipologia evento" nel calcolo combinato del CPR.</p>
+            <div class="slider-wrapper">
+              <input type="range" id="pb-weight-slider" min="0" max="1" step="0.01" class="config-slider" aria-labelledby="pb-weight-slider-label">
+              <span id="pb-weight-value" class="slider-value">0.333</span>
+            </div>
+          </div>
+           <div class="config-slider-item">
+            <label for="cpr-limit-slider" class="config-label-title">Limite raggio cerchio CPR (km)</label>
+            <p class="config-description">Raggio massimo visualizzato per il cerchio di stima dell'area CPR.</p>
+            <div class="slider-wrapper">
+              <input type="range" id="cpr-limit-slider" min="1" max="100" step="1" class="config-slider" aria-labelledby="cpr-limit-slider-label">
+              <span id="cpr-limit-value" class="slider-value">50</span>
+            </div>
+          </div>
+           <button id="reset-config-btn" class="btn btn-secondary" style="margin-top: var(--sp-md);">
+             <span class="material-icons" aria-hidden="true">restart_alt</span>
+             Ripristina Predefiniti
+           </button>
+        </div>
+      </details>
+
+      <!-- Legenda -->
+      <section class="control-group accordion legend">
+        <div class="section-header collapsible">
+          <span class="material-icons" aria-hidden="true">menu</span>
+          Legenda
+          <span class="collapse-icon material-icons" aria-hidden="true">expand_less</span>
+        </div>
+        <ul class="collapsible-content">
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <span class="material-icons" style="color: var(--color-danger);">warning</span>
+            </div>
+            Delitto Principale
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <span class="material-icons" style="color: var(--color-warning);">warning</span>
+            </div>
+            Morte Collaterale
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <span class="material-icons" style="color: var(--color-neutral);">home</span>
+            </div>
+            Abitazione Sospettato
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <span class="material-icons" style="color: var(--color-primary-dark);">home</span>
+            </div>
+            Abitazione Vittima
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <span class="material-icons" style="color: var(--color-primary);">location_on</span>
+            </div>
+            Punto di Interesse
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <div class="legend-marker special"
+                style="background: var(--bg-success); border: 2px solid var(--color-success); color: var(--color-success);">
+                B</div>
+            </div>
+            Baricentro
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <div class="legend-marker special"
+                style="background: var(--bg-success); border: 2px solid var(--color-danger); color: var(--color-danger);">
+                M</div>
+            </div>
+            Mediana
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <div class="legend-marker special"
+                style="background: var(--bg-warning); border: 2px solid var(--color-warning); color: var(--color-warning);">
+                F</div>
+            </div>
+            Centro di Minima Distanza
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <div class="legend-marker special"
+                style="background: var(--bg-accent); border: 2px solid var(--color-accent); color: var(--color-accent);">
+                C</div>
+            </div>
+            Centro del Cerchio di Canter
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <div class="legend-marker canter-circle"></div>
+            </div>
+            Cerchio di Canter
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <div class="legend-marker special"
+                style="background: var(--bg-muted); border: 2px solid var(--color-neutral); color: var(--color-neutral); font-size: 8px;">
+                CPR</div>
+            </div>
+            Centro Probabile Residenza
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <svg width="20" height="20">
+                <polygon points="2,2 18,2 18,18 2,18" fill="none" stroke="black" stroke-width="2" />
+              </svg>
+            </div>
+            Convex Hull (CHP)
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+                <div class="legend-marker mid-circle"></div>
+            </div>
+            Area MID
+        </li>
+        <li class="legend-item">
+            <div class="legend-icon-wrapper">
+                <div class="legend-marker special" 
+                  style="background: var(--bg-purple-light); border: 2px solid var(--color-purple); color: var(--color-purple); font-size: 8px;">
+                  NNI</div>
+            </div>
+            Nearest Neighbour Index
+        </li>
+        </ul>
+      </section>
+    </aside>
+    <main id="map" tabindex="0" role="application" aria-label="Mappa interattiva"></main>
+  </div>
+  <!-- Librerie JavaScript -->
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" defer></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js" defer></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js" defer></script>
+  <!-- Script dell'applicazione -->
+  <script src="js/config.js" defer></script>
+  <script src="js/data.js" defer></script>
+  <script src="js/algorithms.js" defer></script>
+  <script src="js/mapManager.js" defer></script>
+  <script src="js/geoAnalysis.js" defer></script>
+</body>
+
 </html>
