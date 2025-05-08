@@ -1,6 +1,9 @@
 ## Analisi Geospaziale dei Delitti del Mostro di Firenze
 
-Questo progetto offre una dashboard interattiva per l'analisi spaziale dei delitti attribuiti al Mostro di Firenze.  
+Dashboard interattiva per l'analisi spaziale dei delitti attribuiti al Mostro di Firenze.
+
+[geospatial-analysis-dashboard](https://xposterjb.github.io/geospatial-analysis-dashboard/)
+
 Include i principali luoghi legati al caso MdF:
 
 - Delitti principali e omicidi collaterali  
