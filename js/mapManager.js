@@ -15,7 +15,7 @@ class MapManager {
     constructor() {
         this.map = L.map('map', {
             preferCanvas: false
-        }).setView([43.78, 11.2], 11); // Centrato su Firenza
+        }).setView([43.78, 11.2], 11);
 
         this.svgRenderer = L.svg().addTo(this.map);
 
