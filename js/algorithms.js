@@ -369,6 +369,25 @@ const algoritmiGeometrici = {
     },
 
     voronoiDelaunay: function (punti) {
+        // Verifica preventiva se ci sono abbastanza punti
+        if (!punti || punti.length < 3) {
+            return {
+                punti,
+                voronoi: [],
+                triangolazione: { triangoli: [] },
+                intersezioni: [],
+                estremiVoronoi: [],
+                estremiDelaunay: [],
+                stats: {
+                    tempo: new Date().toISOString(),
+                    numPuntiInput: punti ? punti.length : 0,
+                    segmentiVoronoi: 0,
+                    segmentiDelaunay: 0,
+                    intersezioniTrovate: 0
+                }
+            };
+        }
+
         const triangolazione = algoritmiGeometrici.delaunay(punti);
         const voronoi = algoritmiGeometrici.voronoi(punti);
         const {
@@ -466,13 +485,6 @@ const algoritmiGeometrici = {
                     if (!puntiProcessati.has(key)) {
                         puntiProcessati.add(key);
                         puntiIntersezioni.push(intersezione);
-
-                            console.log('Intersezione trovata:', {
-                                x: intersezione.x.toFixed(4),
-                                y: intersezione.y.toFixed(4),
-                                vSegment: `${segV.p1.x},${segV.p1.y} -> ${segV.p2.x},${segV.p2.y}`,
-                                dSegment: `${segD.p1.x},${segD.p1.y} -> ${segD.p2.x},${segD.p2.y}`
-                            });                        
                     }
                 }
             }
@@ -498,8 +510,7 @@ const algoritmiGeometrici = {
 
     // Estrae i segmenti da un array di poligoni di Voronoi
     estraiSegmentiDaPoligoni: function (poligoni) {
-        console.log('Poligoni Voronoi da elaborare:', poligoni.length);
-
+/*
         if (poligoni.length > 0) {
             const esempioPol = poligoni[0];
             console.log('Struttura poligono Voronoi:', {
@@ -509,6 +520,7 @@ const algoritmiGeometrici = {
                     esempioPol.polygon.slice(0, 2).map(v => `[${v}]`) : 'nessuno'
             });
         }
+*/
 
         const segmentiUnici = new Set();
         const segmenti = [];

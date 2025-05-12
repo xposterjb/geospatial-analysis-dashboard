@@ -833,48 +833,68 @@ class GeoAnalysisApp {
                 }
                 */
 
-                // trova il baricentro delle intersezioni
-                const baricentro = algoritmiGeometrici.baricentro(intersezioni);
-                const [lonBaricentro, latBaricentro] = proj4('EPSG:32632', 'EPSG:4326', [baricentro.x, baricentro.y]);
+                // Verifica se ci sono intersezioni prima di procedere
+                if (intersezioni && intersezioni.length > 0) {
+                    // trova il baricentro delle intersezioni
+                    const baricentro = algoritmiGeometrici.baricentro(intersezioni);
+                    const [lonBaricentro, latBaricentro] = proj4('EPSG:32632', 'EPSG:4326', [baricentro.x, baricentro.y]);
 
-                const iconBaricentro = creaIconaCerchio('VD', '--color-bordeaux', '--bg-accent');
-                
-                this.mapManager.addIcon(latBaricentro, lonBaricentro, {
-                    html: iconBaricentro,
-                    popup: `<div class="popup-title">Baricentro delle intersezioni</div>`,
-                    tooltip: `Baricentro delle intersezioni`,
-                    permanentTooltip: mostraEtichette,
-                    iconAnchor: [10, 10]
-                });
-                
-                // trova il punto di intersezione più vicino al baricentro
-                const raggioMinimo = algoritmiGeometrici.calcolaRaggioMinimo(intersezioni, baricentro);
+                    const iconBaricentro = creaIconaCerchio('VD', '--color-bordeaux', '--bg-accent');
+                    
+                    this.mapManager.addIcon(latBaricentro, lonBaricentro, {
+                        html: iconBaricentro,
+                        popup: `<div class="popup-title">Baricentro delle intersezioni</div>`,
+                        tooltip: `Baricentro delle intersezioni`,
+                        permanentTooltip: mostraEtichette,
+                        iconAnchor: [10, 10]
+                    });
+                    
+                    // trova il punto di intersezione più vicino al baricentro
+                    const raggioMinimo = algoritmiGeometrici.calcolaRaggioMinimo(intersezioni, baricentro);
 
-                // disegna il cerchio di raggio minimo
-                this.mapManager.addCircle(latBaricentro, lonBaricentro, raggioMinimo, {
-                    color: getCSSVar('--color-bordeaux'),
-                    fillColor: getCSSVar('--color-bordeaux'),
-                    fillOpacity: 0.1,
-                    weight: 2
-                });
-                
-                // Aggiungi l'infobox per VoronoiDelaunay
-                const contenutoInfoboxVD = `
-                    <p class="coordinate">${latBaricentro.toFixed(4)}°N, ${lonBaricentro.toFixed(4)}°E</p>
-                    <p class="coordinate">UTM: ${Math.round(baricentro.x)}E, ${Math.round(baricentro.y)}N</p>
-                    <p class="punti-riepilogo">${riepilogoPuntiVD}</p>
-                    <table class="nni-table">
-                        <tr>
-                            <td>Intersezioni trovate</td>
-                            <td>${intersezioni.length}</td>
-                        </tr>
-                        <tr>
-                            <td>Raggio minimo</td>
-                            <td>${formattaDistanzaKm(raggioMinimo, 1)}</td>
-                        </tr>
-                    </table>
-                `;
-                this.aggiornaInfoboxBase('Intersezioni Voronoi-Delaunay', contenutoInfoboxVD, iconBaricentro);
+                    // disegna il cerchio di raggio minimo
+                    this.mapManager.addCircle(latBaricentro, lonBaricentro, raggioMinimo, {
+                        color: getCSSVar('--color-bordeaux'),
+                        fillColor: getCSSVar('--color-bordeaux'),
+                        fillOpacity: 0.1,
+                        weight: 2
+                    });
+                    
+                    // Aggiungi l'infobox per VoronoiDelaunay
+                    const contenutoInfoboxVD = `
+                        <p class="coordinate">${latBaricentro.toFixed(4)}°N, ${lonBaricentro.toFixed(4)}°E</p>
+                        <p class="coordinate">UTM: ${Math.round(baricentro.x)}E, ${Math.round(baricentro.y)}N</p>
+                        <p class="punti-riepilogo">${riepilogoPuntiVD}</p>
+                        <table class="nni-table">
+                            <tr>
+                                <td>Intersezioni trovate</td>
+                                <td>${intersezioni.length}</td>
+                            </tr>
+                            <tr>
+                                <td>Raggio minimo</td>
+                                <td>${formattaDistanzaKm(raggioMinimo, 1)}</td>
+                            </tr>
+                        </table>
+                    `;
+                    this.aggiornaInfoboxBase('Intersezioni Voronoi-Delaunay', contenutoInfoboxVD, iconBaricentro);
+                } else {
+                    // Gestisci il caso in cui non ci siano intersezioni
+                    const iconAlert = creaIconaCerchio('VD', '--color-bordeaux', '--bg-accent');
+                    const contenutoInfoboxVD = `
+                        <p class="punti-riepilogo">${riepilogoPuntiVD}</p>
+                        <table class="nni-table">
+                            <tr>
+                                <td>Intersezioni trovate</td>
+                                <td>0</td>
+                            </tr>
+                            <tr>
+                                <td>Messaggio</td>
+                                <td>Punti insufficienti per generare intersezioni</td>
+                            </tr>
+                        </table>
+                    `;
+                    this.aggiornaInfoboxBase('Intersezioni Voronoi-Delaunay', contenutoInfoboxVD, iconAlert);
+                }
             }
 
             // Cerchio di Canter
@@ -1489,3 +1509,235 @@ function escapeHtml(str) {
 };
 
 window.addEventListener('DOMContentLoaded', () => new GeoAnalysisApp());
+
+// Funzione per ottenere i colori personalizzati dall'utente
+function getColoriAnalisi() {
+  const coloriPredefiniti = {
+    baricentro: { bg: '#E8F5E9', bordo: '#4CAF50' },
+    mediana: { bg: '#E8F5E9', bordo: '#E53935' },
+    fermat: { bg: '#FFF8E1', bordo: '#FB8C00' },
+    canter: { bg: '#EDE7F6', bordo: '#673AB7' },
+    cerchioCanter: '#673AB7',
+    cpr: { bg: '#F5F5F5', bordo: '#616161' },
+    cerchioCpr: '#616161',
+    chp: '#616161',
+    mid: '#2196F3',
+    nni: { bg: '#F3E5F5', bordo: '#8E24AA' },
+    voronoi: '#2196F3',
+    delaunay: '#FF9800',
+    voronoiDelaunay: { bg: '#F5F5F5', bordo: '#8B0000' }
+  };
+
+  // Carica i colori salvati, se esistono
+  const coloriSalvati = JSON.parse(localStorage.getItem('coloriAnalisi')) || {};
+  return { ...coloriPredefiniti, ...coloriSalvati };
+}
+
+// Modifica la funzione che crea il baricentro per usare i colori personalizzati
+function creaBaricentro(coordinate) {
+  const colori = getColoriAnalisi();
+  // ... existing code ...
+  
+  // Modifica per usare i colori personalizzati
+  const markerBaricentro = L.circleMarker([y, x], {
+    radius: 8,
+    weight: 2,
+    opacity: 1,
+    color: colori.baricentro.bordo,
+    fillColor: colori.baricentro.bg,
+    fillOpacity: 0.9
+  }).addTo(mappa);
+  
+  // ... existing code ...
+}
+
+// Modifica la funzione che crea la mediana per usare i colori personalizzati
+function creaMediana(coordinate) {
+  const colori = getColoriAnalisi();
+  // ... existing code ...
+  
+  // Modifica per usare i colori personalizzati
+  const markerMediana = L.circleMarker([y, x], {
+    radius: 8,
+    weight: 2,
+    opacity: 1,
+    color: colori.mediana.bordo,
+    fillColor: colori.mediana.bg,
+    fillOpacity: 0.9
+  }).addTo(mappa);
+  
+  // ... existing code ...
+}
+
+// Modifica la funzione che crea il centro di Fermat per usare i colori personalizzati
+function creaFermatCenter(coordinate) {
+  const colori = getColoriAnalisi();
+  // ... existing code ...
+  
+  // Modifica per usare i colori personalizzati
+  const markerFermat = L.circleMarker([y, x], {
+    radius: 8,
+    weight: 2,
+    opacity: 1,
+    color: colori.fermat.bordo,
+    fillColor: colori.fermat.bg,
+    fillOpacity: 0.9
+  }).addTo(mappa);
+  
+  // ... existing code ...
+}
+
+// Modifica la funzione che crea il cerchio di Canter per usare i colori personalizzati
+function creaCerchioCanter(delitti) {
+  const colori = getColoriAnalisi();
+  // ... existing code ...
+  
+  // Modifica per usare i colori personalizzati
+  const markerCanter = L.circleMarker([centerY, centerX], {
+    radius: 8,
+    weight: 2,
+    opacity: 1,
+    color: colori.canter.bordo,
+    fillColor: colori.canter.bg,
+    fillOpacity: 0.9
+  }).addTo(mappa);
+  
+  const circleCanter = L.circle([centerY, centerX], {
+    radius: radius * 1000, // converte in metri
+    weight: 2,
+    color: colori.cerchioCanter,
+    opacity: 0.7,
+    fill: false
+  }).addTo(mappa);
+  
+  // ... existing code ...
+}
+
+// Modifica la funzione che crea il CPR per usare i colori personalizzati
+function creaCentroProbabileResidenza(punti) {
+  const colori = getColoriAnalisi();
+  // ... existing code ...
+  
+  // Modifica per usare i colori personalizzati
+  const markerCPR = L.circleMarker([centroY, centroX], {
+    radius: 8,
+    weight: 2,
+    opacity: 1,
+    color: colori.cpr.bordo,
+    fillColor: colori.cpr.bg,
+    fillOpacity: 0.9
+  }).addTo(mappa);
+  
+  const circleCPR = L.circle([centroY, centroX], {
+    radius: cprRadius * 1000, // converte in metri
+    weight: 2,
+    color: colori.cerchioCpr,
+    opacity: 0.6,
+    fillOpacity: 0.05,
+    fillColor: colori.cerchioCpr
+  }).addTo(mappa);
+  
+  // ... existing code ...
+}
+
+// Modifica la funzione che crea il Convex Hull per usare i colori personalizzati
+function creaConvexHull(coordinate) {
+  const colori = getColoriAnalisi();
+  // ... existing code ...
+  
+  // Modifica per usare i colori personalizzati
+  const convexHull = L.polygon(coordinateHull, {
+    color: colori.chp,
+    weight: 2,
+    opacity: 0.7,
+    fillOpacity: 0.1
+  }).addTo(mappa);
+  
+  // ... existing code ...
+}
+
+// Modifica la funzione che crea il MID per usare i colori personalizzati
+function creaMeanInterpointDistance(coordinate) {
+  const colori = getColoriAnalisi();
+  // ... existing code ...
+  
+  // Modifica per usare i colori personalizzati
+  const circleMarker = L.circle([centroY, centroX], {
+    radius: midValue * 1000, // converte in metri
+    weight: 2,
+    color: colori.mid,
+    opacity: 0.7,
+    fillOpacity: 0.1,
+    dashArray: '5, 5'
+  }).addTo(mappa);
+  
+  // ... existing code ...
+}
+
+// Modifica la funzione che crea i poligoni di Voronoi per usare i colori personalizzati
+function creaVoronoi(coordinate) {
+  const colori = getColoriAnalisi();
+  // ... existing code ...
+  
+  // Modifica per usare i colori personalizzati
+  const voronoiLayer = L.geoJSON(voronoiPolygons, {
+    style: {
+      color: colori.voronoi,
+      weight: 2,
+      opacity: 0.7,
+      fillOpacity: 0.1
+    }
+  }).addTo(mappa);
+  
+  // ... existing code ...
+}
+
+// Modifica la funzione che crea la triangolazione di Delaunay per usare i colori personalizzati
+function creaDelaunay(coordinate) {
+  const colori = getColoriAnalisi();
+  // ... existing code ...
+  
+  // Modifica per usare i colori personalizzati
+  const delaunayLayer = L.geoJSON(delaunayLines, {
+    style: {
+      color: colori.delaunay,
+      weight: 2,
+      opacity: 0.7
+    }
+  }).addTo(mappa);
+  
+  // ... existing code ...
+}
+
+// Modifica la funzione che crea il baricentro delle intersezioni per usare i colori personalizzati
+function creaVoronoiDelaunayIntersection(delitti) {
+  const colori = getColoriAnalisi();
+  // ... existing code ...
+  
+  // Modifica per usare i colori personalizzati
+  const markerVD = L.circleMarker([centroY, centroX], {
+    radius: 8,
+    weight: 2,
+    opacity: 1,
+    color: colori.voronoiDelaunay.bordo,
+    fillColor: colori.voronoiDelaunay.bg,
+    fillOpacity: 0.9
+  }).addTo(mappa);
+  
+  // ... existing code ...
+}
+
+// Modifica la funzione che crea il marker NNI per usare i colori personalizzati
+function creaNearestNeighborIndex(coordinate) {
+  const colori = getColoriAnalisi();
+  // ... existing code ...
+  
+  // Quando crei il marker custom, aggiungi un attributo data-tipo
+  const htmlContent = `
+    <div class="legend-marker special" data-tipo="nni" style="background: ${colori.nni.bg}; border: 2px solid ${colori.nni.bordo}; color: ${colori.nni.bordo}; font-size: 8px;">
+      NNI
+    </div>
+  `;
+  
+  // ... existing code ...
+}
