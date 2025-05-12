@@ -20,10 +20,15 @@
 
     <!-- Sidebar -->
     <aside class="controls" aria-label="Filtri mappa">
-      <h2>
-        <span class="material-icons" aria-hidden="true">tune</span>
-        Filtri
-      </h2>
+      <div class="sidebar-header">
+        <h2>
+          <span class="material-icons" aria-hidden="true">tune</span>
+          Filtri
+        </h2>
+        <button id="toggle-sidebar" class="toggle-sidebar-btn" aria-label="Collassa barra laterale">
+          <span class="material-icons" aria-hidden="true">chevron_left</span>
+        </button>
+      </div>
 
       <!-- Delitti MdF -->
       <details class="control-group accordion" aria-label="Filtri Delitti MdF">
@@ -101,7 +106,8 @@
           <p class="timeline-description">Mostra solo gli eventi avvenuti fino all'anno selezionato.</p>
           <div class="slider-label">
             <span id="min-anno">1968</span>
-            <input type="range" id="anno-slider" min="1968" max="2005" value="1985" aria-valuemin="1968" aria-valuemax="2005" aria-valuenow="1985" />
+            <input type="range" id="anno-slider" min="1968" max="2005" value="1985" aria-valuemin="1968"
+              aria-valuemax="2005" aria-valuenow="1985" />
             <span id="max-anno">2025</span>
           </div>
         </div>
@@ -114,8 +120,7 @@
           Tipo di Analisi
         </summary>
         <div class="checkbox-group" role="group">
-          <label
-            title="Calcola il baricentro geometrico (media delle coordinate) dei delitti selezionati.">
+          <label title="Calcola il baricentro geometrico (media delle coordinate) dei delitti selezionati.">
             <input type="checkbox" id="analisi-baricentro" checked />
             Baricentro
           </label>
@@ -144,11 +149,23 @@
           <label title="Calcola la distanza media tra tutte le coppie di punti.">
             <input type="checkbox" id="analisi-mid" />
             Mean Interpoint Distance (MID)
-        </label>
-        <label title="Misura il grado di raggruppamento o dispersione spaziale dei delitti.">
-          <input type="checkbox" id="analisi-nni" />
-          Nearest Neighbour Index (NNI)
-      </label>
+          </label>
+          <label title="Misura il grado di raggruppamento o dispersione spaziale dei delitti.">
+            <input type="checkbox" id="analisi-nni" />
+            Nearest Neighbour Index (NNI)
+          </label>
+          <label title="Calcola i poligoni di Voronoi per i delitti selezionati.">
+            <input type="checkbox" id="analisi-voronoi" />
+            Poligoni di Voronoi
+          </label>
+          <label title="Calcola la triangolazione di Delaunay per i delitti selezionati.">
+            <input type="checkbox" id="analisi-delaunay" />
+            Triangolazione di Delaunay
+          </label>
+          <label title="Calcola il baricentro delle intersezioni tra i poligoni di Voronoi e Delaunay.">
+            <input type="checkbox" id="analisi-voronoi-delaunay" />
+            Baricentro intersezioni Voronoi e Delaunay
+          </label>
         </div>
       </details>
 
@@ -167,7 +184,7 @@
               </label>
             </div>
           </div>
-          
+
           <div class="switch-item">
             <label for="mostra-etichette" class="config-label-title">Mostra tutte le etichette</label>
             <div class="switch-wrapper">
@@ -177,10 +194,10 @@
               </label>
             </div>
           </div>
-          
+
           <div class="punti-calcolo-section">
             <h4 class="config-label-title">Punti da includere nei calcoli:</h4>
-            
+
             <div class="switch-item">
               <label for="includi-poi-switch" class="config-label-title">Punti d'Interesse</label>
               <div class="switch-wrapper">
@@ -190,22 +207,24 @@
                 </label>
               </div>
             </div>
-            
+
             <div class="switch-item">
               <label for="includi-abit-sosp-switch" class="config-label-title">Abitazioni sospettati</label>
               <div class="switch-wrapper">
                 <label class="switch">
-                  <input type="checkbox" id="includi-abit-sosp-switch" aria-label="Includi abitazioni sospettati nei calcoli">
+                  <input type="checkbox" id="includi-abit-sosp-switch"
+                    aria-label="Includi abitazioni sospettati nei calcoli">
                   <span class="slider round"></span>
                 </label>
               </div>
             </div>
-            
+
             <div class="switch-item">
               <label for="includi-abit-vitt-switch" class="config-label-title">Abitazioni vittime</label>
               <div class="switch-wrapper">
                 <label class="switch">
-                  <input type="checkbox" id="includi-abit-vitt-switch" aria-label="Includi abitazioni vittime nei calcoli">
+                  <input type="checkbox" id="includi-abit-vitt-switch"
+                    aria-label="Includi abitazioni vittime nei calcoli">
                   <span class="slider round"></span>
                 </label>
               </div>
@@ -221,90 +240,102 @@
         </summary>
         <div id="config-sliders-container" role="group">
           <div class="slider-container">
-            <label for="journey-radius-slider" id="journey-radius-slider-label" class="config-label-title">Raggio di azione (km)</label>
-            <p class="config-description">Soglia oltre la quale gli eventi più lontani ridurranno drasticamente la loro influenza.</p>
+            <label for="journey-radius-slider" id="journey-radius-slider-label" class="config-label-title">Raggio di
+              azione (km)</label>
+            <p class="config-description">Soglia oltre la quale gli eventi più lontani ridurranno drasticamente la loro
+              influenza.</p>
             <div class="slider-wrapper">
-              <input type="range" id="journey-radius-slider" min="1" max="20" step="0.5" class="config-slider" 
+              <input type="range" id="journey-radius-slider" min="1" max="20" step="0.5" class="config-slider"
                 aria-valuemin="1" aria-valuemax="20" aria-valuenow="5" aria-labelledby="journey-radius-slider-label">
               <span id="journey-radius-value" class="slider-value">5</span>
             </div>
           </div>
           <div class="slider-container">
-            <label for="time-decay-slider" id="time-decay-slider-label" class="config-label-title">Tasso decadimento temporale</label>
-            <p class="config-description">Velocità con cui l'importanza di un evento diminuisce nel tempo (0 = nessun decadimento).</p>
+            <label for="time-decay-slider" id="time-decay-slider-label" class="config-label-title">Tasso decadimento
+              temporale</label>
+            <p class="config-description">Velocità con cui l'importanza di un evento diminuisce nel tempo (0 = nessun
+              decadimento).</p>
             <div class="slider-wrapper">
-              <input type="range" id="time-decay-slider" min="0.01" max="1" step="0.01" class="config-slider" 
+              <input type="range" id="time-decay-slider" min="0.01" max="1" step="0.01" class="config-slider"
                 aria-valuemin="0.01" aria-valuemax="1" aria-valuenow="0.25" aria-labelledby="time-decay-slider-label">
               <span id="time-decay-value" class="slider-value">0.25</span>
             </div>
           </div>
           <div class="slider-container">
-            <label for="base-weight-slider" id="base-weight-slider-label" class="config-label-title">Peso delitti principali</label>
+            <label for="base-weight-slider" id="base-weight-slider-label" class="config-label-title">Peso delitti
+              principali</label>
             <p class="config-description">Importanza relativa assegnata ai delitti principali.</p>
             <div class="slider-wrapper">
-              <input type="range" id="base-weight-slider" min="0.1" max="1.0" step="0.1" class="config-slider" 
+              <input type="range" id="base-weight-slider" min="0.1" max="1.0" step="0.1" class="config-slider"
                 aria-valuemin="0.1" aria-valuemax="1.0" aria-valuenow="1.0" aria-labelledby="base-weight-slider-label">
               <span id="base-weight-value" class="slider-value">1.0</span>
             </div>
           </div>
           <div class="slider-container">
-            <label for="collateral-weight-slider" id="collateral-weight-slider-label" class="config-label-title">Peso eventi collaterali</label>
+            <label for="collateral-weight-slider" id="collateral-weight-slider-label" class="config-label-title">Peso
+              eventi collaterali</label>
             <p class="config-description">Importanza relativa assegnata a morti/eventi collaterali.</p>
             <div class="slider-wrapper">
-              <input type="range" id="collateral-weight-slider" min="0.1" max="1.0" step="0.1" class="config-slider" 
-                aria-valuemin="0.1" aria-valuemax="1.0" aria-valuenow="0.3" aria-labelledby="collateral-weight-slider-label">
+              <input type="range" id="collateral-weight-slider" min="0.1" max="1.0" step="0.1" class="config-slider"
+                aria-valuemin="0.1" aria-valuemax="1.0" aria-valuenow="0.3"
+                aria-labelledby="collateral-weight-slider-label">
               <span id="collateral-weight-value" class="slider-value">0.3</span>
             </div>
           </div>
           <div class="slider-container">
-            <label for="poi-weight-slider" id="poi-weight-slider-label" class="config-label-title">Peso punti interesse</label>
+            <label for="poi-weight-slider" id="poi-weight-slider-label" class="config-label-title">Peso punti
+              interesse</label>
             <p class="config-description">Importanza relativa assegnata ai punti di interesse generici.</p>
             <div class="slider-wrapper">
-              <input type="range" id="poi-weight-slider" min="0.1" max="1.0" step="0.1" class="config-slider" 
+              <input type="range" id="poi-weight-slider" min="0.1" max="1.0" step="0.1" class="config-slider"
                 aria-valuemin="0.1" aria-valuemax="1.0" aria-valuenow="0.3" aria-labelledby="poi-weight-slider-label">
               <span id="poi-weight-value" class="slider-value">0.3</span>
             </div>
           </div>
           <div class="slider-container">
-            <label for="jw-weight-slider" id="jw-weight-slider-label" class="config-label-title">Peso fattore distanza (JW)</label>
+            <label for="jw-weight-slider" id="jw-weight-slider-label" class="config-label-title">Peso fattore distanza
+              (JW)</label>
             <p class="config-description">Peso della componente "distanza" nel calcolo combinato del CPR.</p>
             <div class="slider-wrapper">
-              <input type="range" id="jw-weight-slider" min="0.01" max="1" step="0.01" class="config-slider" 
+              <input type="range" id="jw-weight-slider" min="0.01" max="1" step="0.01" class="config-slider"
                 aria-valuemin="0.01" aria-valuemax="1" aria-valuenow="0.333" aria-labelledby="jw-weight-slider-label">
               <span id="jw-weight-value" class="slider-value">0.333</span>
             </div>
           </div>
           <div class="slider-container">
-            <label for="dt-weight-slider" id="dt-weight-slider-label" class="config-label-title">Peso fattore tempo (DT)</label>
+            <label for="dt-weight-slider" id="dt-weight-slider-label" class="config-label-title">Peso fattore tempo
+              (DT)</label>
             <p class="config-description">Peso della componente "tempo" nel calcolo combinato del CPR.</p>
             <div class="slider-wrapper">
-              <input type="range" id="dt-weight-slider" min="0.01" max="1" step="0.01" class="config-slider" 
+              <input type="range" id="dt-weight-slider" min="0.01" max="1" step="0.01" class="config-slider"
                 aria-valuemin="0.01" aria-valuemax="1" aria-valuenow="0.333" aria-labelledby="dt-weight-slider-label">
               <span id="dt-weight-value" class="slider-value">0.333</span>
             </div>
           </div>
           <div class="slider-container">
-            <label for="pb-weight-slider" id="pb-weight-slider-label" class="config-label-title">Peso fattore tipo (PB)</label>
+            <label for="pb-weight-slider" id="pb-weight-slider-label" class="config-label-title">Peso fattore tipo
+              (PB)</label>
             <p class="config-description">Peso della componente "tipologia evento" nel calcolo combinato del CPR.</p>
             <div class="slider-wrapper">
-              <input type="range" id="pb-weight-slider" min="0.01" max="1" step="0.01" class="config-slider" 
+              <input type="range" id="pb-weight-slider" min="0.01" max="1" step="0.01" class="config-slider"
                 aria-valuemin="0.01" aria-valuemax="1" aria-valuenow="0.333" aria-labelledby="pb-weight-slider-label">
               <span id="pb-weight-value" class="slider-value">0.333</span>
             </div>
           </div>
           <div class="slider-container">
-            <label for="cpr-limit-slider" id="cpr-limit-slider-label" class="config-label-title">Limite raggio cerchio CPR (km)</label>
+            <label for="cpr-limit-slider" id="cpr-limit-slider-label" class="config-label-title">Limite raggio cerchio
+              CPR (km)</label>
             <p class="config-description">Raggio massimo visualizzato per il cerchio di stima dell'area CPR.</p>
             <div class="slider-wrapper">
-              <input type="range" id="cpr-limit-slider" min="1" max="100" step="1" class="config-slider" 
+              <input type="range" id="cpr-limit-slider" min="1" max="100" step="1" class="config-slider"
                 aria-valuemin="1" aria-valuemax="100" aria-valuenow="50" aria-labelledby="cpr-limit-slider-label">
               <span id="cpr-limit-value" class="slider-value">50</span>
             </div>
           </div>
-           <button id="reset-config-btn" class="btn btn-secondary" style="margin-top: var(--sp-md);">
-             <span class="material-icons" aria-hidden="true">restart_alt</span>
-             Ripristina Predefiniti
-           </button>
+          <button id="reset-config-btn" class="btn btn-secondary" style="margin-top: var(--sp-md);">
+            <span class="material-icons" aria-hidden="true">restart_alt</span>
+            Ripristina Predefiniti
+          </button>
         </div>
       </details>
 
@@ -324,7 +355,8 @@
               <span class="material-icons" aria-hidden="true">info</span>
               Clicca sulla mappa per selezionare il punto.
             </p>
-            <input type="text" id="nome-punto" class="poi-input" placeholder="Nome del punto" hidden aria-label="Nome del punto di interesse" />
+            <input type="text" id="nome-punto" class="poi-input" placeholder="Nome del punto" hidden
+              aria-label="Nome del punto di interesse" />
             <div class="poi-actions">
               <button id="salva-punto-btn" class="btn btn-secondary" type="button">
                 <span class="material-icons" aria-hidden="true">check</span>
@@ -433,25 +465,26 @@
           </li>
           <li class="legend-item">
             <div class="legend-icon-wrapper">
-                <div class="legend-marker mid-circle"></div>
+              <div class="legend-marker mid-circle"></div>
             </div>
             Area MID
-        </li>
-        <li class="legend-item">
+          </li>
+          <li class="legend-item">
             <div class="legend-icon-wrapper">
-                <div class="legend-marker special" 
-                  style="background: var(--bg-purple-light); border: 2px solid var(--color-purple); color: var(--color-purple); font-size: 8px;">
-                  NNI</div>
+              <div class="legend-marker special"
+                style="background: var(--bg-purple-light); border: 2px solid var(--color-purple); color: var(--color-purple); font-size: 8px;">
+                NNI</div>
             </div>
             Nearest Neighbour Index
-        </li>
+          </li>
         </ul>
       </section>
     </aside>
     <main id="map" tabindex="0" role="application" aria-label="Mappa interattiva"></main>
   </div>
-  
+
   <!-- Librerie JavaScript -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
   <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" defer></script>
   <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js" defer></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js" defer></script>
