@@ -80,4 +80,65 @@ class GestoreTema {
 
 document.addEventListener('DOMContentLoaded', () => {
     window.gestoreTema = new GestoreTema();
+    
+    const toggleSidebarBtn = document.getElementById('toggle-sidebar');
+    const dashboard = document.querySelector('.dashboard');
+    
+    function toggleSidebar() {
+        dashboard.classList.toggle('sidebar-collapsed');
+        
+        const isCollapsed = dashboard.classList.contains('sidebar-collapsed');
+        localStorage.setItem('sidebarCollapsed', isCollapsed);
+        
+        const mapElement = document.getElementById('map');
+        const controlsElement = dashboard.querySelector('.controls');
+
+        let transitionEventsFired = 0;
+        const expectedTransitions = 2; // Una per la mappa (left) e una per la sidebar (width)
+
+        const invalidateMapOnTransitionEnd = (event) => {
+            // Controlla se la transizione è su un elemento e proprietà attesi
+            const isMapTransition = event.target === mapElement && event.propertyName === 'left';
+            const isControlsTransition = event.target === controlsElement && event.propertyName === 'width';
+
+            if (isMapTransition || isControlsTransition) {
+                transitionEventsFired++;
+            }
+
+            // Invalida solo dopo che entrambe le transizioni rilevanti sono terminate
+            if (transitionEventsFired >= expectedTransitions) {
+                if (window.geoAnalisi && window.geoAnalisi.mapManager && window.geoAnalisi.mapManager.map) {
+                    window.geoAnalisi.mapManager.map.invalidateSize({ debounceMoveend: true });
+                }
+                // Rimuovi i listener
+                if (mapElement) mapElement.removeEventListener('transitionend', invalidateMapOnTransitionEnd);
+                if (controlsElement) controlsElement.removeEventListener('transitionend', invalidateMapOnTransitionEnd);
+            }
+        };
+        
+        if (mapElement) mapElement.addEventListener('transitionend', invalidateMapOnTransitionEnd);
+        if (controlsElement) controlsElement.addEventListener('transitionend', invalidateMapOnTransitionEnd);
+
+        // Fallback con setTimeout nel caso transitionend non scatti per tutti gli elementi attesi
+        setTimeout(() => {
+            if (window.geoAnalisi && window.geoAnalisi.mapManager && window.geoAnalisi.mapManager.map) {
+                window.geoAnalisi.mapManager.map.invalidateSize({ debounceMoveend: true });
+            }
+             // Assicura la rimozione dei listener anche nel fallback se non sono scattati
+            if (mapElement) mapElement.removeEventListener('transitionend', invalidateMapOnTransitionEnd);
+            if (controlsElement) controlsElement.removeEventListener('transitionend', invalidateMapOnTransitionEnd);
+        }, 350); // Leggermente più lungo della transizione CSS (0.3s)
+    }
+    
+    toggleSidebarBtn.addEventListener('click', toggleSidebar);
+    
+    const savedCollapsedState = localStorage.getItem('sidebarCollapsed');
+    if (savedCollapsedState === 'true') {
+        dashboard.classList.add('sidebar-collapsed');
+        setTimeout(() => {
+            if (window.geoAnalisi && window.geoAnalisi.mapManager && window.geoAnalisi.mapManager.map) {
+                window.geoAnalisi.mapManager.map.invalidateSize({debounceMoveend: true});
+            }
+        }, 500); 
+    }
 }); 

@@ -20,7 +20,6 @@
  * - Math
  *
  */
-
 const algoritmiGeometrici = {
 
     // ALGORITMI PRINCIPALI
@@ -38,11 +37,8 @@ const algoritmiGeometrici = {
             x: somma.x / punti.length,
             y: somma.y / punti.length
         };
-        const raggioMassimo = algoritmiGeometrici.calcolaRaggioMassimo(punti, coordBaricentro);
-        return {
-            ...coordBaricentro,
-            raggio: raggioMassimo
-        };
+
+        return algoritmiGeometrici.returnCoordRaggio(punti, coordBaricentro);
     },
 
     mediana: function (punti) {
@@ -52,13 +48,11 @@ const algoritmiGeometrici = {
         const medianaX = algoritmiGeometrici.calcolaMediana(coordinateX);
         const medianaY = algoritmiGeometrici.calcolaMediana(coordinateY);
         const puntoMediano = { x: medianaX, y: medianaY };
-        return {
-            ...puntoMediano,
-            raggio: algoritmiGeometrici.calcolaRaggioMassimo(punti, puntoMediano)
-        };
+
+        return algoritmiGeometrici.returnCoordRaggio(punti, puntoMediano);
     },
 
-    // Algoritmo per calcolare il punto di minima distanza
+    // Algoritmo per calcolare il centro di minima distanza
     fermat: punti => {
         algoritmiGeometrici.validaArrayPunti(punti);
         if (punti.length < 3) {
@@ -70,17 +64,15 @@ const algoritmiGeometrici = {
             const p1 = { x: minX, y: minY };
             const p2 = { x: maxX, y: maxY };
             const puntoMedio = algoritmiGeometrici.puntoMedio(p1, p2);
-            return {
-                ...puntoMedio,
-                raggio: algoritmiGeometrici.calcolaRaggioMassimo(punti, puntoMedio)
-            };
+
+            return algoritmiGeometrici.returnCoordRaggio(punti, puntoMedio);
         }
         // Se i punti non sono collineari, si applica l'algoritmo iterativo di Weiszfeld
-        // Parto dal baricentro calcolato in precedenza come stima iniziale
         const baricentroIniziale = algoritmiGeometrici.baricentro(punti);
         let puntoCorrente = { x: baricentroIniziale.x, y: baricentroIniziale.y };
         let xPrecedente = puntoCorrente.x;
         let yPrecedente = puntoCorrente.y;
+
         for (let indiceIterazione = 0; indiceIterazione < window.MAX_ITERATIONS; indiceIterazione++) {
             let sommaX = 0;
             let sommaY = 0;
@@ -101,7 +93,7 @@ const algoritmiGeometrici = {
             const nuovoY = sommaY / sommaPesi;
             const spostamentoX = nuovoX - xPrecedente;
             const spostamentoY = nuovoY - yPrecedente;
-            // Usa la funzione verificaConvergenza
+
             if (algoritmiGeometrici.verificaConvergenza(
                 { x: nuovoX, y: nuovoY },
                 { x: xPrecedente, y: yPrecedente }
@@ -113,21 +105,19 @@ const algoritmiGeometrici = {
             yPrecedente += 0.67 * spostamentoY;
         }
         const puntoFinale = { x: xPrecedente, y: yPrecedente };
-        return {
-            ...puntoFinale,
-            raggio: algoritmiGeometrici.calcolaRaggioMassimo(punti, puntoFinale)
-        };
+
+        return algoritmiGeometrici.returnCoordRaggio(punti, puntoFinale);
     },
 
     canter: punti => {
         try {
             algoritmiGeometrici.validaArrayPunti(punti);
             if (punti.length === 1) {
-                return { ...punti[0], raggio: 0 };
+                return algoritmiGeometrici.returnCoordRaggio(punti, punti[0]);
             }
             let maxDist = 0;
             let coppia = null;
-            // Itera su tutte le coppie uniche di punti
+
             algoritmiGeometrici.perOgniCoppia(punti, (p1, p2, idx1, idx2) => {
                 const dist = algoritmiGeometrici.distanzaTraPunti(p1, p2);
                 if (dist > maxDist) {
@@ -148,8 +138,7 @@ const algoritmiGeometrici = {
     // Implementare Minimum Enclosing Circle - MEC di un insieme di punti.
 
     centroProbabileResidenza: punti => {
-        algoritmiGeometrici.validaArrayPunti(punti);
-        // Parto dal baricentro
+        algoritmiGeometrici.validaArrayPunti(punti);        
         const baricentroIniziale = algoritmiGeometrici.baricentro(punti);
         // Trovo l'anno più recente tra tutti i punti
         const annoMassimo = Math.max(...punti.map(p => p.year || 1985));
@@ -163,12 +152,12 @@ const algoritmiGeometrici = {
             // Ipotesi che le morti collaterali siano meno informnative (peso 0.3)
             const pesoTipo = (p.pesoBase !== undefined) ? p.pesoBase : 1.0;
             return {
-                // restituisce il punto e il suo peso finale (media ponderata dei tre pesi calcolati)
                 x: p.x,
                 y: p.y,
                 peso: window.PB_COMPONENT_WEIGHT * pesoTipo + window.JW_COMPONENT_WEIGHT * journeyWeight + window.DT_COMPONENT_WEIGHT * decayTime
             };
         });
+
         let centro = { ...baricentroIniziale };
         let iter = 0;
         while (iter < window.MAX_ITERATIONS) {
@@ -179,11 +168,11 @@ const algoritmiGeometrici = {
                 sumY += (p.peso * p.y) / dist;
                 sumW += p.peso / dist;
             });
+
             const nuovoCentro = {
                 x: sumX / sumW,
                 y: sumY / sumW
             };
-            // Usa la funzione verificaConvergenza
             if (algoritmiGeometrici.verificaConvergenza(nuovoCentro, centro)) {
                 break;
             }
@@ -199,7 +188,6 @@ const algoritmiGeometrici = {
     // Calcola convex hull di un insieme di punti (algoritmo Monotone Chain)
     convexHull: function (punti) {
         try {
-            // Gestisce casi con meno di 3 punti.
             if (punti.length < 3) {
                 return {
                     punti: punti.slice().sort((a, b) => a.x - b.x || a.y - b.y),
@@ -208,12 +196,10 @@ const algoritmiGeometrici = {
                 };
             }
             const puntiOrdinati = punti.slice().sort((a, b) => a.x - b.x || a.y - b.y);
-            // Calcola l'orientamento di 3 punti (prodotto vettoriale 2D).
-            const orientamento = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
             const bordoInferiore = [];
             for (const p of puntiOrdinati) {
                 // Rimuove i punti che creano concavità
-                while (bordoInferiore.length >= 2 && orientamento(bordoInferiore[bordoInferiore.length - 2], bordoInferiore[bordoInferiore.length - 1], p) <= 0) {
+                while (bordoInferiore.length >= 2 && algoritmiGeometrici.orientamentoCrossProduct(bordoInferiore[bordoInferiore.length - 2], bordoInferiore[bordoInferiore.length - 1], p) <= 0) {
                     bordoInferiore.pop();
                 }
                 bordoInferiore.push(p);
@@ -221,7 +207,7 @@ const algoritmiGeometrici = {
             const bordoSuperiore = [];
             for (let i = puntiOrdinati.length - 1; i >= 0; i--) {
                 const p = puntiOrdinati[i];
-                while (bordoSuperiore.length >= 2 && orientamento(bordoSuperiore[bordoSuperiore.length - 2], bordoSuperiore[bordoSuperiore.length - 1], p) <= 0) {
+                while (bordoSuperiore.length >= 2 && algoritmiGeometrici.orientamentoCrossProduct(bordoSuperiore[bordoSuperiore.length - 2], bordoSuperiore[bordoSuperiore.length - 1], p) <= 0) {
                     bordoSuperiore.pop();
                 }
                 bordoSuperiore.push(p);
@@ -229,8 +215,8 @@ const algoritmiGeometrici = {
             // Rimuove i punti duplicati
             bordoSuperiore.pop();
             bordoInferiore.pop();
+
             const hull = bordoInferiore.concat(bordoSuperiore);
-            // Calcola l'area del poligono
             const area = Math.abs(hull.reduce((acc, p, i) => {
                 const nextP = hull[(i + 1) % hull.length];
                 return acc + (p.x * nextP.y - nextP.x * p.y);
@@ -248,8 +234,7 @@ const algoritmiGeometrici = {
             algoritmiGeometrici.validaArrayPunti(punti);
             if (punti.length < 2) return 0;
             let sommaDistanze = 0;
-            const numeroPunti = punti.length;
-            // Versione con perOgniCoppia
+            const numeroPunti = punti.length;            
             algoritmiGeometrici.perOgniCoppia(punti, (p1, p2) => {
                 sommaDistanze += algoritmiGeometrici.distanzaTraPunti(p1, p2);
             });
@@ -266,15 +251,18 @@ const algoritmiGeometrici = {
         try {
             punti = algoritmiGeometrici.validaArrayPunti(punti);
             punti = punti.filter(p => typeof p.x === 'number' && typeof p.y === 'number');
-            const numeroPunti = punti.length;
+            const numeroPunti = punti.length;            
             if (numeroPunti < 2) throw new Error("Almeno due punti sono necessari per calcolare NNI");
+
             const areaTotale = algoritmiGeometrici.areaBoundingBox(punti, 100);
+
             const sommaDistanze = punti.reduce((somma, p1, i) => {
                 const distanzaVicino = Math.min(...punti.filter((_, j) => j !== i).map(p2 => {
                     return algoritmiGeometrici.distanzaTraPunti(p1, p2);
                 }));
                 return somma + (isFinite(distanzaVicino) ? distanzaVicino : 0);
             }, 0);
+
             const distanzaMedia = sommaDistanze / numeroPunti;
             // Calcola la distanza media attesa in un pattern casuale per la stessa area e numero di punti
             const distanzaCasuale = 0.5 * Math.sqrt(areaTotale / numeroPunti);
@@ -301,6 +289,363 @@ const algoritmiGeometrici = {
         return "Dispersione Forte";
     },
 
+    voronoi: function (punti) {
+        algoritmiGeometrici.validaArrayPunti(punti);
+        const margine = 500;
+        const estremi = algoritmiGeometrici.trovaEstremi(punti);
+        const estremiConMargine = {
+            minX: estremi.minX - margine,
+            minY: estremi.minY - margine,
+            maxX: estremi.maxX + margine,
+            maxY: estremi.maxY + margine
+        };
+
+        const triangolazioneObj = algoritmiGeometrici.delaunay(punti)
+        ;
+        if (!triangolazioneObj.oggetto) {
+            return [];
+        }
+
+        const voronoi = triangolazioneObj.oggetto.voronoi([
+            estremiConMargine.minX,
+            estremiConMargine.minY,
+            estremiConMargine.maxX,
+            estremiConMargine.maxY
+        ]);
+
+        // Genera un poligono per ogni punto del Voronoi
+        const poligoni = [];
+        for (let i = 0; i < punti.length; i++) {
+            const poligono = voronoi.cellPolygon(i);
+
+            if (poligono) {
+                poligoni.push({
+                    site: punti[i],
+                    polygon: poligono  // Array di coordinate [x,y] che formano il poligono
+                });
+            }
+        }
+        return poligoni;
+    },
+
+    delaunay: function (punti) {
+        algoritmiGeometrici.validaArrayPunti(punti);
+        if (punti.length < 3) {
+            return {
+                triangoli: [],
+                oggetto: null,
+                statistiche: {
+                    numeroPunti: punti.length,
+                    numeroTriangoli: 0
+                }
+            };
+        }
+
+        const flatPoints = punti.flatMap(p => [p.x, p.y]);
+        const triangolazione = new d3.Delaunay(flatPoints);
+        const risultato = {
+            triangoli: [],
+            oggetto: triangolazione,
+            statistiche: {
+                numeroPunti: punti.length,
+                numeroTriangoli: triangolazione.triangles.length / 3
+            }
+        };
+        // triangles contiene gli indici dei punti [i0,j0,k0, i1,j1,k1, ...]
+        const triangles = triangolazione.triangles;
+        for (let i = 0; i < triangles.length; i += 3) {
+            // Estrae gli indici dei 3 punti del triangolo corrente
+            const [indice1, indice2, indice3] = triangolazione.triangles.slice(i, i + 3);
+            risultato.triangoli.push({
+                punti: [
+                    punti[indice1],
+                    punti[indice2],
+                    punti[indice3]
+                ],
+                indici: [indice1, indice2, indice3]
+            });
+        }
+        return risultato;
+    },
+
+    voronoiDelaunay: function (punti) {
+        const triangolazione = algoritmiGeometrici.delaunay(punti);
+        const voronoi = algoritmiGeometrici.voronoi(punti);
+        const {
+            intersezioni,
+            estremiVoronoi,
+            estremiDelaunay,
+            stats
+        } = algoritmiGeometrici.trovaIntersezioniVoronoiDelaunay(voronoi, triangolazione);
+
+        return {
+            punti,
+            voronoi,
+            triangolazione,
+            intersezioni,
+            estremiVoronoi,
+            estremiDelaunay,
+            stats: {
+                tempo: new Date().toISOString(),
+                numPuntiInput: punti.length,
+                ...stats
+            }
+        };
+    },
+
+    trovaIntersezioniVoronoiDelaunay: function (voronoi, delaunay) {
+        const tuttiPunti = [
+            ...voronoi.flatMap(p => p.polygon.map(v => ({ x: v[0], y: v[1] }))),
+            ...delaunay.triangoli.flatMap(t => t.punti)
+        ];
+        const riferimento = algoritmiGeometrici.trovaPuntoRiferimento(tuttiPunti);
+
+        const estremiVoronoi = new Set();
+        const estremiDelaunay = new Set();
+        const puntiIntersezioni = [];   
+
+        // Estrazione e normalizzazione segmenti Voronoi
+        const segmentiVoronoi = algoritmiGeometrici.estraiSegmentiDaPoligoni(voronoi).map(seg => ({
+            id: seg.id,
+            chiave: seg.chiave,
+            p1: algoritmiGeometrici.normalizzaPunto(seg.p1, riferimento),
+            p2: algoritmiGeometrici.normalizzaPunto(seg.p2, riferimento)
+        }));
+
+        // Estrazione e normalizzazione segmenti Delaunay
+        const segmentiDelaunay = algoritmiGeometrici.estraiSegmentiDaTriangoli(delaunay.triangoli).map(seg => ({
+            id: seg.id,
+            chiave: seg.chiave,
+            p1: algoritmiGeometrici.normalizzaPunto(seg.p1, riferimento),
+            p2: algoritmiGeometrici.normalizzaPunto(seg.p2, riferimento)
+        }));
+
+        // Funzione helper per aggiungere estremi con chiavi
+        const aggiungiEstremi = (segmenti, setEstremi) => {
+            segmenti.forEach(seg => {
+                const keyP1 = `${seg.p1.x.toFixed(8)},${seg.p1.y.toFixed(8)}`;
+                const keyP2 = `${seg.p2.x.toFixed(8)},${seg.p2.y.toFixed(8)}`;
+                setEstremi.add(keyP1);
+                setEstremi.add(keyP2);
+            });
+        };
+
+        aggiungiEstremi(segmentiVoronoi, estremiVoronoi);
+        aggiungiEstremi(segmentiDelaunay, estremiDelaunay);
+
+        const puntiProcessati = new Set();
+        const segmentiDelaunayConBB = segmentiDelaunay.map(seg => ({
+            ...seg,
+            minX: Math.min(seg.p1.x, seg.p2.x),
+            maxX: Math.max(seg.p1.x, seg.p2.x),
+            minY: Math.min(seg.p1.y, seg.p2.y),
+            maxY: Math.max(seg.p1.y, seg.p2.y)
+        }));
+
+        for (const segV of segmentiVoronoi) {
+            const minXV = Math.min(segV.p1.x, segV.p2.x);
+            const maxXV = Math.max(segV.p1.x, segV.p2.x);
+            const minYV = Math.min(segV.p1.y, segV.p2.y);
+            const maxYV = Math.max(segV.p1.y, segV.p2.y);
+
+            for (const segD of segmentiDelaunayConBB) {
+                if (segD.minX > maxXV || segD.maxX < minXV ||
+                    segD.minY > maxYV || segD.maxY < minYV) {
+                    continue;
+                }
+                
+                const intersezione = algoritmiGeometrici.trovaIntersezioneSegmenti(segV, segD);
+                if (intersezione) {
+                    const key = `${intersezione.x.toFixed(8)},${intersezione.y.toFixed(8)}`;
+
+                    // Escludi intersezioni che sono estremi
+                    if (estremiVoronoi.has(key) || estremiDelaunay.has(key)) {
+                        continue;
+                    }
+
+                    if (!puntiProcessati.has(key)) {
+                        puntiProcessati.add(key);
+                        puntiIntersezioni.push(intersezione);
+
+                            console.log('Intersezione trovata:', {
+                                x: intersezione.x.toFixed(4),
+                                y: intersezione.y.toFixed(4),
+                                vSegment: `${segV.p1.x},${segV.p1.y} -> ${segV.p2.x},${segV.p2.y}`,
+                                dSegment: `${segD.p1.x},${segD.p1.y} -> ${segD.p2.x},${segD.p2.y}`
+                            });                        
+                    }
+                }
+            }
+        }
+
+        const convertiSetInPunti = set =>
+            Array.from(set).map(s => {
+                const [x, y] = s.split(',').map(Number);
+                return { x, y };
+            });
+
+        return {
+            intersezioni: puntiIntersezioni.map(p => algoritmiGeometrici.denormalizzaPunto(p, riferimento)),
+            estremiVoronoi: convertiSetInPunti(estremiVoronoi).map(p => algoritmiGeometrici.denormalizzaPunto(p, riferimento)),
+            estremiDelaunay: convertiSetInPunti(estremiDelaunay).map(p => algoritmiGeometrici.denormalizzaPunto(p, riferimento)),
+            stats: {
+                segmentiVoronoi: segmentiVoronoi.length,
+                segmentiDelaunay: segmentiDelaunay.length,
+                intersezioniTrovate: puntiIntersezioni.length
+            }
+        };
+    },
+
+    // Estrae i segmenti da un array di poligoni di Voronoi
+    estraiSegmentiDaPoligoni: function (poligoni) {
+        console.log('Poligoni Voronoi da elaborare:', poligoni.length);
+
+        if (poligoni.length > 0) {
+            const esempioPol = poligoni[0];
+            console.log('Struttura poligono Voronoi:', {
+                site: esempioPol.site ? { x: esempioPol.site.x, y: esempioPol.site.y } : 'mancante',
+                polygon: esempioPol.polygon ? `Array con ${esempioPol.polygon.length} vertici` : 'mancante',
+                primiVertici: esempioPol.polygon && esempioPol.polygon.length > 0 ?
+                    esempioPol.polygon.slice(0, 2).map(v => `[${v}]`) : 'nessuno'
+            });
+        }
+
+        const segmentiUnici = new Set();
+        const segmenti = [];
+        let segmentoId = 1;
+
+        poligoni.forEach((poligono, poligonoIdx) => {
+            if (!poligono.polygon || !Array.isArray(poligono.polygon)) {
+                console.error('Formato poligono non valido:', poligono);
+                return;
+            }
+
+            // Converti i vertici del poligono in oggetti {x,y}
+            const vertici = poligono.polygon.map(punto => {
+                if (!Array.isArray(punto) || punto.length < 2) {
+                    console.error('Formato punto non valido:', punto);
+                    return null;
+                }
+                return { x: punto[0], y: punto[1] };
+            }).filter(Boolean);
+
+            // Crea i segmenti tra i vertici
+            for (let i = 0; i < vertici.length; i++) {
+                const p1 = vertici[i];
+                const p2 = vertici[(i + 1) % vertici.length];
+
+                // Crea una chiave univoca per ogni segmento, ordinando le coordinate
+                const [minX, maxX] = p1.x <= p2.x ? [p1.x, p2.x] : [p2.x, p1.x];
+                const [minY, maxY] = p1.y <= p2.y ? [p1.y, p2.y] : [p2.y, p1.y];
+                const segKey = `${minX.toFixed(6)},${minY.toFixed(6)}-${maxX.toFixed(6)},${maxY.toFixed(6)}`;
+
+                if (segmentiUnici.has(segKey)) {
+                    continue;
+                }
+                segmentiUnici.add(segKey);
+                segmenti.push({
+                    id: `V${segmentoId}`,
+                    p1: p1,
+                    p2: p2,
+                    poligono: poligonoIdx,
+                    chiave: segKey
+                });
+                segmentoId++;
+            }
+        });
+        return segmenti;
+    },
+
+    estraiSegmentiDaTriangoli: function (triangoli) {
+        const segmenti = [];
+        const segmentiUnici = new Map();
+        let segmentoId = 1;
+
+        triangoli.forEach((triangolo, triangoloIdx) => {
+            const [p0, p1, p2] = triangolo.punti;
+            const lati = [
+                [p0, p1],
+                [p1, p2],
+                [p2, p0]
+            ];
+
+            lati.forEach(([pA, pB], latoIdx) => {
+                const [first, second] = pA.x < pB.x || (pA.x === pB.x && pA.y < pB.y)
+                    ? [pA, pB]
+                    : [pB, pA];
+
+                // Crea chiave univoca
+                const key = `${first.x},${first.y}|${second.x},${second.y}`;
+
+                if (!segmentiUnici.has(key)) {
+
+                    const nuovoSegmento = {
+                        id: `D${segmentoId}`,
+                        p1: pA,
+                        p2: pB,
+                        triangolo: triangoloIdx,
+                        chiave: key
+                    };
+
+                    segmenti.push(nuovoSegmento);
+                    segmentiUnici.set(key, true);
+                    segmentoId++;
+                }
+            });
+        });
+        return segmenti;
+    },
+
+    trovaIntersezioneSegmenti: function (seg1, seg2) {
+        const EPSILON = 1e-10;
+        
+        if (!seg1 || !seg2 || !seg1.p1 || !seg1.p2 || !seg2.p1 || !seg2.p2) {
+            return null;
+        }    
+        if (seg1.chiave === seg2.chiave) {
+            return null;
+        }
+    
+        const p1 = seg1.p1, p2 = seg1.p2;
+        const p3 = seg2.p1, p4 = seg2.p2;    
+        // Calcola i denominatori
+        const denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
+        const numera = (p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x);
+        const numerb = (p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x);    
+        // Segmenti coincidenti o paralleli
+        if (Math.abs(denom) < EPSILON) {
+            return null;
+        }
+    
+        const mua = numera / denom;
+        const mub = numerb / denom;  
+
+        if (mua >= -EPSILON && mua <= 1 + EPSILON && mub >= -EPSILON && mub <= 1 + EPSILON) {            
+            // Calcola punto di intersezione
+            const x = p1.x + mua * (p2.x - p1.x);
+            const y = p1.y + mua * (p2.y - p1.y);
+            
+            return {
+                x: x,
+                y: y,
+                segmenti: {
+                    voronoi: seg1.id.startsWith('V') ? seg1.id : seg2.id,
+                    delaunay: seg1.id.startsWith('D') ? seg1.id : seg2.id
+                }
+            };
+        }        
+        return null;
+    },
+
+    // Verifica se un punto è già presente nell'array entro una certa tolleranza
+    puntoGiàPresente: function (punto, arrayPunti, tolleranza = window.SQRT_EPSILON) {
+        return arrayPunti.some(p => {
+            const dx = p.x - punto.x;
+            const dy = p.y - punto.y;
+            return dx * dx + dy * dy < tolleranza;
+        });
+    },
+
     // FUNZIONI HELPER
 
     distanzaTraPunti: (p1, p2) => Math.hypot(p1.x - p2.x, p1.y - p2.y),
@@ -319,6 +664,10 @@ const algoritmiGeometrici = {
 
     calcolaRaggioMassimo: (punti, centro) => {
         return Math.max(...punti.map(p => algoritmiGeometrici.distanzaTraPunti(p, centro)));
+    },
+
+    calcolaRaggioMinimo: (punti, centro) => {
+        return Math.min(...punti.map(p => algoritmiGeometrici.distanzaTraPunti(p, centro)));
     },
 
     calcolaMediana: (punti) => {
@@ -383,5 +732,47 @@ const algoritmiGeometrici = {
         const minY = Math.min(...punti.map(p => p.y));
         const maxY = Math.max(...punti.map(p => p.y));
         return { minX, minY, maxX, maxY };
+    },
+
+    estraiSegmenti(geometrie, getVertici) {
+        const segmenti = [];
+        for (const geo of geometrie) {
+            const vertici = getVertici(geo);
+            for (let i = 0; i < vertici.length; i++) {
+                const p1 = vertici[i];
+                const p2 = vertici[(i + 1) % vertici.length];
+                segmenti.push({ p1, p2 });
+            }
+        }
+        return segmenti;
+    },
+    normalizzaPunto: (punto, riferimento) => ({
+        x: (punto.x - riferimento.x) / 10000,
+        y: (punto.y - riferimento.y) / 10000
+    }),
+
+    denormalizzaPunto: (punto, riferimento) => ({
+        x: punto.x * 10000 + riferimento.x,
+        y: punto.y * 10000 + riferimento.y
+    }),
+
+    trovaPuntoRiferimento: (punti) => {
+        const allX = punti.map(p => p.x);
+        const allY = punti.map(p => p.y);
+        return {
+            x: Math.min(...allX),
+            y: Math.min(...allY)
+        };
+    },
+    
+    orientamentoCrossProduct: (o, a, b) => {
+        return (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+    },
+
+    returnCoordRaggio: (punti, coord) => {
+        return {
+            ...coord,
+            raggio: algoritmiGeometrici.calcolaRaggioMassimo(punti, coord)
+        };
     }
 };

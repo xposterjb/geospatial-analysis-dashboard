@@ -13,63 +13,63 @@
 const rawData = {
     delitti: [
         // Luogo dell'omicidio Bar. Loc. e Ant. LoB.
-        [43.79475, 11.08234, 'Castelletti Signa 1968'],
+        [43.79475, 11.08234, 'Castelletti Signa 1968', 'https://www.mostrodifirenze.com/1968/08/22/21-agosto-1968-mappa-del-delitto-di-signa/'],
 
         // Luogo dell'omicidio Ste. Pet. e Pas. Gen.
-        [43.938899, 11.416420, 'Fontanine Rabatta 1974'],
+        [43.938899, 11.416420, 'Fontanine Rabatta 1974', 'https://www.mostrodifirenze.com/1974/09/15/14-settembre-1974-mappa-del-delitto-di-borgo-san-lorenzo/'],
 
         // Luogo dell'omicidio di Car. DeN. e Gio. Fog.
-        [43.733065, 11.168895, 'Mosciano Scandicci 1981'],
+        [43.733065, 11.168895, 'Mosciano Scandicci 1981', 'https://www.mostrodifirenze.com/1981/06/06/6-giugno-1981-mappa-del-delitto-di-mosciano/'],
 
         // Luogo dell'omicidio di Sus. Cam. e Ste. Bal. 
-        [43.871668, 11.158981, 'Le Bartoline Calenzano 1981'],
+        [43.871668, 11.158981, 'Le Bartoline Calenzano 1981', 'https://www.mostrodifirenze.com/1981/10/22/22-ottobre-1981-mappa-del-delitto-di-calenzano/'],
 
         // Luogo dell'omicidio di Ant. Mig. e Pao. Mai.
-        [43.654446, 11.090850, 'Baccaiano Montespertoli 1982'],
+        [43.654446, 11.090850, 'Baccaiano Montespertoli 1982', 'https://www.mostrodifirenze.com/1982/06/19/19-giugno-1982-mappa-del-delitto-di-baccaiano/'],
 
         // Luogo dell'omicidio di W.F.Hor.Mey. e U.J.Rüs.
-        [43.732077, 11.206387, 'Giogoli Impruneta 1983'],
+        [43.732077, 11.206387, 'Giogoli Impruneta 1983', 'https://www.mostrodifirenze.com/1983/09/09/9-settembre-1983-mappa-del-delitto-di-giogoli/'],
 
         // Luogo dell'omicidio di Cla. Ste. e Pia Ron.
-        [43.919017, 11.498061, 'La Boschetta Vicchio 1984'],
+        [43.919017, 11.498061, 'La Boschetta Vicchio 1984', 'https://www.mostrodifirenze.com/1984/07/29/29-luglio-1984-mappa-del-delitto-del-la-boschetta/'],
 
         // Luogo dell'omicidio di Nad. Mau. e J.M. Kra. 
-        [43.694202, 11.201946, 'Scopeti 1985']
+        [43.694202, 11.201946, 'Scopeti 1985', 'https://www.mostrodifirenze.com/1985/09/08/6-7-8-settembre-1985-mappa-del-delitto-dei-scopeti/']
     ],
 
     omicidiCollaterali: [
         // Omicidio irrisolto di Mir. Esc. trovata strangolata in una traversa di via Bolognese
         // Possibile riferimento (M.E. 72) nella lettera a Vagheggi
-        [43.80539, 11.26153, 'Mir. Esc. 1972'],
+        [43.80539, 11.26153,'Mir. Escobar 1972', 'https://www.mostrodifirenze.com/1972/03/22/22-marzo-1972-delitto-di-miriam-ana-escobar/', 'https://www.mostrodifirenze.com/2020/10/04/mappe-degli-omicidi-collaterali/'],
 
         // Marito di Mar.Ant.Sper.Trovato impiccato nella stalla di casa, archiviato come suicidio.
-        [43.6857, 11.19179, 'Ren. Mal. (?) 1980'],
+        [43.6857, 11.19179, 'Ren. Malatesta (?) 1980', 'https://www.mostrodifirenze.com/1980/12/23/23-dicembre-1980-renato-malatesta-viene-trovato-impiccato-nella-stalla/'],
 
         // Prostituta fiorentina citata nel processo ai CdM. Ufficialmente la donna morì cadendo dalle scale di casa sua​.
-        [43.79946, 11.23883, 'Gin. Man. 1981'],
+        [43.79946, 11.23883, 'Gin. Manfredi 1981', 'https://www.mostrodifirenze.com/1981/08/04/4-agosto-1981-delitto-di-gina-manfredi/','https://www.mostrodifirenze.com/2020/10/04/mappe-degli-omicidi-collaterali/'],
 
         // Ritrovata dalla coinquilina, colpita da 17 coltellate al petto, inguine e collo.
-        [43.77293, 11.25029, 'Giu. Mon. 1982'],
+        [43.77293, 11.25029, 'Giu. Monciatti 1982', 'https://www.mostrodifirenze.com/1982/02/11/11-febbraio-1982-delitto-di-giuliana-monciatti/', 'https://www.mostrodifirenze.com/2020/10/04/mappe-degli-omicidi-collaterali/'],
 
         // Trovata morta mentre era in vacanza in Sicilia. Numerose ferite da taglio sul corpo
         // Era vicina di casa di Sus. Cam., una delle vittime del mostro
-        [36.72118, 14.73763, 'Eli. Ciab. B.S. 1982'],
+        [36.72118, 14.73763, 'Eli. Ciabiani 1982', 'https://www.mostrodifirenze.com/1982/08/22/elisabetta-ciabani/', 'https://www.mostrodifirenze.com/2020/10/04/mappe-degli-omicidi-collaterali/'],
 
         // Prostituta frequentata da MV. Trovata morta nella sua abitazione.
         // Coltellate sul corpo e soffocata con il filo del telefono.
-        [43.76334, 11.27619, 'Cle. Cusc. 1983'],
+        [43.76334, 11.27619, 'Cle. Cuscito 1983', 'https://www.mostrodifirenze.com/1983/12/14/14-dicembre-1983-delitto-di-clelia-cuscito/', 'https://www.mostrodifirenze.com/2020/10/04/mappe-degli-omicidi-collaterali/'],
 
         // Duplice omicidio alle porte di Lucca, in un luogo appartato frequentato da coppiette.
         // I due fidanzati furono trovati nella loro auto crivellati da cinque colpi di pistola calibro .22​
         // con bossoli di marca Lapua
-        [43.85243, 10.48713, 'Ben. Rig. 1984'],
+        [43.85243, 10.48713, 'Benedetti Riggio 1984', 'https://www.mostrodifirenze.com/1984/01/21/21-gennaio-1984-delitto-di-graziella-benedetti-e-paolo-riggio/', 'https://www.mostrodifirenze.com/2020/10/04/mappe-degli-omicidi-collaterali/'],
 
         // Trovata morta in una traversa di via Bolognese, come Mir. Esc.
         // Segni di strangolamento e cinque coltellate.
-        [43.811972, 11.272342, 'Gab. Cal. 1984'],
+        [43.811972, 11.272342, 'Gab. Cal. 1984', 'https://www.mostrodifirenze.com/1984/03/01/1-marzo-1984-delitto-di-gabriella-caltabellotta/', 'https://www.mostrodifirenze.com/2020/10/04/mappe-degli-omicidi-collaterali/'],
 
         // Cadavere carbonizzato trovato in un prato. Presenza di una Golf rubata di colore verde.
-        [43.95698, 11.21286, 'Donna trovata carbonizzata 1984'],
+        [43.95698, 11.21286, 'Donna trovata carbonizzata 1984', 'https://www.mostrodifirenze.com/1984/07/22/22-luglio-1984-delitto-di-una-sconosciuta/', 'https://www.mostrodifirenze.com/2020/10/04/mappe-degli-omicidi-collaterali/'],
 
         // Prostituta trovata strangolata nell'appartamento in cui esercitava.
         [43.77380, 11.24672, 'Giu. Bas. 1984'],
@@ -195,9 +195,24 @@ const rawData = {
     ]
 };
 
-const convertiInUTM = data => data.map(([lat, lon, label]) => {
+const convertiInUTM = data => data.map(([lat, lon, label, link1, link2]) => {
     const [x, y] = proj4('EPSG:4326', 'EPSG:32632', [lon, lat]);
     const yearMatch = label.match(/\d{4}/);
     const year = yearMatch ? parseInt(yearMatch[0]) : null;
-    return { x, y, label, lat, lon, year };
+    
+    const fonti = [];
+    if (link1) fonti.push(link1);
+    if (link2) fonti.push(link2);
+    
+    return {
+        x,
+        y,
+        label,
+        lat,
+        lon,
+        year,
+        fonti: fonti.length > 0 ? fonti : null,
+        link1: link1 || null,
+        link2: link2 || null
+    };
 });

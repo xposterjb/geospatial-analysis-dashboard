@@ -14,7 +14,10 @@
 class MapManager {
     constructor() {
         this.map = L.map('map', {
-            preferCanvas: false
+            preferCanvas: false,
+            zoomDelta: 0.5,     // Permette livelli di zoom intermedi
+            zoomSnap: 0.5,      // Aggancia lo zoom a incrementi di 0.5
+            wheelPxPerZoomLevel: 120   // Controllo più fine con la rotellina del mouse
         }).setView([43.78, 11.2], 11);
 
         this.svgRenderer = L.svg().addTo(this.map);
@@ -37,8 +40,10 @@ class MapManager {
 
         this.baseMaps.chiaro.addTo(this.map);
 
-        this.creaSelettoreMappa();
+        // Creiamo prima il container per entrambi i pannelli
+        this.creaPannelliContainer();
         this.inizializzaStrumentiDisegno();
+        this.creaSelettoreMappa();
         this.applicaTemaCorretto();
 
         this.layers = [];
@@ -59,6 +64,14 @@ class MapManager {
         });
     }
 
+    creaPannelliContainer() {
+        // Crea il container principale per i pannelli
+        const pannelliContainer = document.createElement('div');
+        pannelliContainer.className = 'map-panels-container';
+        document.getElementById('map').appendChild(pannelliContainer);
+        this.pannelliContainer = pannelliContainer;
+    }
+
     creaSelettoreMappa() {
         const selectorContainer = document.createElement('div');
         selectorContainer.className = 'map-selector';
@@ -74,7 +87,8 @@ class MapManager {
             const option = document.createElement('div');
             option.className = 'map-selector-option';
             option.dataset.mapType = opzione.id;
-            option.innerHTML = `<span class="material-icons">${opzione.icon}</span>${opzione.label}`;
+            option.innerHTML = `<span class="material-icons">${opzione.icon}</span>`;
+            option.setAttribute('title', opzione.label);
 
             // Aggiungi event listener per cambiare la mappa
             option.addEventListener('click', () => {
@@ -89,7 +103,8 @@ class MapManager {
             selectorContainer.appendChild(option);
         });
 
-        document.getElementById('map').appendChild(selectorContainer);
+        // Aggiungiamo il selettore mappa al container dei pannelli anziché direttamente alla mappa
+        this.pannelliContainer.appendChild(selectorContainer);
 
         const mappaIniziale = document.documentElement.getAttribute('data-theme') === 'dark' ? 'scuro' : 'chiaro';
         const opzioneAttiva = document.querySelector(`.map-selector-option[data-map-type="${mappaIniziale}"]`);
@@ -143,6 +158,19 @@ class MapManager {
         });
         const opzioneChiara = document.querySelector('.map-selector-option[data-map-type="chiaro"]');
         if (opzioneChiara) opzioneChiara.classList.add('active');
+        
+        // Aggiorno le dimensioni della mappa
+        this.map.invalidateSize();
+    }
+
+    /**
+     * Aggiorna le dimensioni della mappa dopo un cambiamento di layout
+     * Utile quando la sidebar viene collassata o espansa
+     */
+    updateMapSize() {
+        if (this.map) {
+            this.map.invalidateSize();
+        }
     }
 
     clear() {
@@ -271,7 +299,8 @@ class MapManager {
             fillColor: '#3388ff44',
             opacity: 0.7,
             fillOpacity: 0.2,
-            interactive: false
+            interactive: false,
+            zIndex: 1
         };
         const settings = { ...defaults, ...options };
         const circle = L.circle([lat, lon], {
@@ -279,6 +308,11 @@ class MapManager {
             radius: isNaN(radius) ? 0 : radius,
             renderer: this.svgRenderer
         }).addTo(this.map);
+        
+        if (settings.zIndex) {
+            circle.setStyle({ zIndex: settings.zIndex });
+        }
+        
         if (settings.popup) {
             circle.bindPopup(settings.popup);
         }
@@ -406,7 +440,9 @@ class MapManager {
     inizializzaStrumentiDisegno() {
         const drawControlContainer = document.createElement('div');
         drawControlContainer.className = 'map-tools-container';
-        document.getElementById('map').appendChild(drawControlContainer);
+        
+        // Aggiungiamo il container strumenti al container dei pannelli anziché direttamente alla mappa
+        this.pannelliContainer.appendChild(drawControlContainer);
 
         const toolsGroup = document.createElement('div');
         toolsGroup.className = 'map-tools-group';

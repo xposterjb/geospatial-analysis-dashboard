@@ -47,10 +47,36 @@ class GeoAnalysisApp {
         this.manualSelections = new Set();
         this.infoboxContent = null;
 
+        this.inizializzaControlliCheckboxLinks();
         this.inizializzaControlli();
         this.aggiornaVisualizzazione();
     }
-    // Inizializzazione e Configurazione UI
+
+    inizializzaControlliCheckboxLinks() {
+        if (!window._checkboxLinksGlobalListener) {
+            window._checkboxLinksOpened = null;
+
+            document.addEventListener('click', (e) => {
+                if (!e.target.classList.contains('checkbox-text-label') && !e.target.closest('.checkbox-links-container')) {
+                    if (window._checkboxLinksOpened) {
+                        window._checkboxLinksOpened.classList.remove('expanded');
+                        window._checkboxLinksOpened = null;
+                    }                
+                }
+            });
+
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    if (window._checkboxLinksOpened) {
+                        window._checkboxLinksOpened.classList.remove('expanded');
+                        window._checkboxLinksOpened = null;
+                    }
+                }
+            });
+            window._checkboxLinksGlobalListener = true;
+        }
+    }
+
     inizializzaControlli() {
         this.mapManager.abilitaCoordinateButton();
         this.configuraCheckboxes();
@@ -65,24 +91,62 @@ class GeoAnalysisApp {
 
     configuraCheckboxes() {
         const configurazioni = [
-            ['delitti-checkbox', this.datasets.delitti, true],
-            ['punti-interesse-checkbox', this.datasets.puntiInteresse, false],
-            ['omicidi-collaterali-checkbox', this.datasets.omicidiCollaterali, false],
-            ['abitazioni-sospettati-checkbox', this.datasets.abitazioniSospettati, true],
-            ['abitazioni-vittime-checkbox', this.datasets.abitazioniVittime, false]
+            ['delitti-checkbox', this.datasets.delitti, true, 'delitti'],
+            ['punti-interesse-checkbox', this.datasets.puntiInteresse, false, 'puntiInteresse'],
+            ['omicidi-collaterali-checkbox', this.datasets.omicidiCollaterali, false, 'omicidiCollaterali'],
+            ['abitazioni-sospettati-checkbox', this.datasets.abitazioniSospettati, true, 'abitazioniSospettati'],
+            ['abitazioni-vittime-checkbox', this.datasets.abitazioniVittime, false, 'abitazioniVittime']
         ];
-        configurazioni.forEach(([id, items, checked]) =>
-            this.popolaCheckbox(id, items, checked)
+        configurazioni.forEach(([id, items, checked, datasetKey]) =>
+            this.popolaCheckbox(id, items, checked, datasetKey)
         );
     }
 
-    popolaCheckbox(containerId, items, checked = true) {
+    popolaCheckbox(containerId, items, checked = true, datasetKey) {
         const container = document.getElementById(containerId);
         if (!container) {
-            console.warn(`Contenitore checkbox non trovato: ${containerId}`);
+            console.warn(`[popolaCheckbox] Contenitore checkbox non trovato: ${containerId}`);
             return;
         }
-        container.innerHTML = items.map(item => creaCheckbox(item.label, checked)).join('');
+        container.innerHTML = items.map((item, index) => {
+            const originalItem = rawData[datasetKey] ? rawData[datasetKey].find(rawItem => rawItem.label === item.label) : item;
+            return creaCheckbox(originalItem || item, checked, `${containerId}-${index}`);
+        }).join('');
+
+        function chiudiDivLinksApertoLocal() {
+            if (window._checkboxLinksOpened) {
+                window._checkboxLinksOpened.classList.remove('expanded');
+                window._checkboxLinksOpened = null;
+            }
+        }
+
+        // Listener su ogni label testuale
+        container.querySelectorAll('.checkbox-text-label').forEach(labelElement => {
+            labelElement.addEventListener('click', (event) => {
+                event.stopPropagation();
+                const controlDiv = event.target.closest('.checkbox-control');
+                if (!controlDiv) {
+                    console.warn("[Label Click] controlDiv non trovato.");
+                    return;
+                }
+                const parentCheckboxContainer = controlDiv.parentElement;
+                const linksContainer = parentCheckboxContainer.querySelector('.checkbox-links-container');
+
+                if (!linksContainer) {
+                    chiudiDivLinksApertoLocal();
+                    return;
+                }
+
+                if (linksContainer.classList.contains('expanded')) {
+                    linksContainer.classList.remove('expanded');
+                    window._checkboxLinksOpened = null;
+                } else {
+                    chiudiDivLinksApertoLocal();
+                    linksContainer.classList.add('expanded');
+                    window._checkboxLinksOpened = linksContainer;
+                }
+            });
+        });
     }
 
     configuraListenerGlobale() {
@@ -101,6 +165,9 @@ class GeoAnalysisApp {
             '#analisi-chp',
             '#analisi-mid',
             '#analisi-nni',
+            '#analisi-voronoi',
+            '#analisi-delaunay',
+            '#analisi-voronoi-delaunay',
             '#mostra-etichette'
         ].join(', ');
 
@@ -257,7 +324,7 @@ class GeoAnalysisApp {
             if (!nome || !nuovoPunto) return;
             // Converte il punto in UTM e lo aggiunge al dataset dei Punti di Interesse
             const [x, y] = proj4('EPSG:4326', 'EPSG:32632', [nuovoPunto.lon, nuovoPunto.lat]);
-            const [lonWGS, latWGS] = proj4('EPSG:32632', 'EPSG:4326', [x, y]);
+            const [lonWGS, latWGS] = convertiUTMtoWGS84(x, y);
 
             const nuovo = {
                 ...nuovoPunto,
@@ -372,12 +439,43 @@ class GeoAnalysisApp {
 
         const legendaHTML = `
             <div class="map-legend-unified">
+                <div class="analisi-header">
+                    <h3>Analisi</h3>
+                    <button class="toggle-analisi-btn" aria-label="Chiudi pannello analisi">
+                        <span class="material-icons">remove</span>
+                    </button>
+                </div>
                 <div class="legend-content"></div>
             </div>
         `;
         this.mapManager.addLegend(legendaHTML, { position: 'bottomright' });
+        
         // Ottieni il riferimento all'elemento content per aggiornamenti futuri
         this.infoboxContent = document.querySelector('.map-legend-unified .legend-content');
+        
+        // Aggiungi il pulsante che appare quando il pannello è collassato
+        const infoboxContainer = document.querySelector('.map-legend-unified').parentNode;
+        const expandBtnHTML = `
+            <button class="expand-analisi-btn" aria-label="Apri pannello analisi" style="display: none;">
+                <span class="material-icons">analytics</span>
+            </button>
+        `;
+        infoboxContainer.insertAdjacentHTML('beforeend', expandBtnHTML);
+        
+        // Aggiungi i listener per i pulsanti di chiusura/apertura
+        const toggleBtn = document.querySelector('.toggle-analisi-btn');
+        const expandBtn = document.querySelector('.expand-analisi-btn');
+        const infobox = document.querySelector('.map-legend-unified');
+        
+        toggleBtn.addEventListener('click', () => {
+            infobox.classList.add('collapsed');
+            expandBtn.style.display = 'flex';
+        });
+        
+        expandBtn.addEventListener('click', () => {
+            infobox.classList.remove('collapsed');
+            expandBtn.style.display = 'none';
+        });
     }
 
     aggiornaInfoboxBase(titolo, contenuto, iconaHtml) {
@@ -409,7 +507,7 @@ class GeoAnalysisApp {
 
     // Funzione helper per generare il contenuto HTML di una infobox standard per i centri
     creaContenutoInfobox(titolo, iconHtml, color, centerPoint, puntiUTM, riepilogoPunti) {
-        const [lon, lat] = proj4('EPSG:32632', 'EPSG:4326', [centerPoint.x, centerPoint.y]);
+        const [lon, lat] = convertiUTMtoWGS84(centerPoint.x, centerPoint.y);
         let minDist = Infinity;
         let maxDist = 0;
         let sommaDistanze = 0;
@@ -559,7 +657,9 @@ class GeoAnalysisApp {
         const mostraCHP = document.getElementById('analisi-chp')?.checked;
         const mostraMID = document.getElementById('analisi-mid').checked;
         const mostraNNI = document.getElementById('analisi-nni').checked;
-
+        const mostraVoronoi = document.getElementById('analisi-voronoi').checked;
+        const mostraDelaunay = document.getElementById('analisi-delaunay').checked;
+        const mostraVoronoiDelaunay = document.getElementById('analisi-voronoi-delaunay').checked;
         const centers = [];
 
         if (delittiAttivi.length > 0) {
@@ -602,6 +702,179 @@ class GeoAnalysisApp {
                     centers,
                     mostraEtichette
                 );
+            }
+
+            if (mostraVoronoi && delittiAttivi.length >= 2) {
+
+                const { puntiCalcolo: puntiVoronoiCalcolo, puntiExtra: puntiVoronoiExtra } = this.otteniPuntiExtra(puntiUTM);
+                const riepilogoPuntiVoronoi = this.generaRiepilogoPunti(puntiUTM, puntiVoronoiExtra);
+
+                const poligoni = algoritmiGeometrici.voronoi(puntiVoronoiCalcolo);
+
+                if (poligoni.length > 0) {
+                    poligoni.forEach(p => {
+                        const latlngs = p.polygon.map(([x, y]) => {
+                            const [lon, lat] = proj4('EPSG:32632', 'EPSG:4326', [x, y]);
+                            return [lat, lon];
+                        });
+
+                        this.mapManager.addPolygon(latlngs, {
+                            color: getCSSVar('--color-primary-dark'),
+                            weight: 2,
+                            fillOpacity: 0.1
+                        });
+                    });
+                    
+                    const iconaHtmlVoronoi = `
+                        <div style="
+                            width: 20px;
+                            height: 20px;
+                            border: 2px solid ${getCSSVar('--color-primary-dark')};
+                            background: rgba(0, 0, 255, 0.1);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-weight: 500;
+                            font-size: 8px;
+                            color: ${getCSSVar('--color-primary-dark')};">VR</div>
+                    `;
+
+                    const contenutoInfoboxVoronoi = `
+                        <p class="punti-riepilogo">${riepilogoPuntiVoronoi}</p>
+                        <table class="nni-table">
+                            <tr>
+                                <td>Poligoni generati</td>
+                                <td>${poligoni.length}</td>
+                            </tr>
+                        </table>
+                    `;
+                    this.aggiornaInfoboxBase('Diagramma di Voronoi', contenutoInfoboxVoronoi, iconaHtmlVoronoi);
+                }
+            }
+
+            if (mostraDelaunay) {
+                const { puntiCalcolo: puntiDelaunayCalcolo, puntiExtra: puntiDelaunayExtra } = this.otteniPuntiExtra(puntiUTM);
+                const riepilogoPuntiDelaunay = this.generaRiepilogoPunti(puntiUTM, puntiDelaunayExtra);
+
+                const triangolazione = algoritmiGeometrici.delaunay(puntiDelaunayCalcolo);
+
+                if (triangolazione && triangolazione.triangoli) {
+                    triangolazione.triangoli.forEach(triangolo => {
+                        const puntoA = triangolo.punti[0];
+                        const puntoB = triangolo.punti[1];
+                        const puntoC = triangolo.punti[2];
+
+                        const [lon1, lat1] = proj4('EPSG:32632', 'EPSG:4326', [puntoA.x, puntoA.y]);
+                        const [lon2, lat2] = proj4('EPSG:32632', 'EPSG:4326', [puntoB.x, puntoB.y]);
+                        const [lon3, lat3] = proj4('EPSG:32632', 'EPSG:4326', [puntoC.x, puntoC.y]);
+
+                        const latlngs = [
+                            [lat1, lon1],
+                            [lat2, lon2],
+                            [lat3, lon3],
+                            [lat1, lon1]
+                        ];
+
+                        this.mapManager.addPolygon(latlngs, {
+                            color: getCSSVar('--color-danger'),
+                            weight: 2,
+                            fillOpacity: 0.1
+                        });
+                    });
+
+                    const iconaHtmlDelaunay = `
+                        <div style="
+                            width: 20px;
+                            height: 20px;
+                            border: 2px solid red;
+                            background: rgba(255, 0, 0, 0.1);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-weight: 500;
+                            font-size: 8px;
+                            color: red;">DT</div>
+                    `;
+
+                    const contenutoInfoboxDelaunay = `
+                        <p class="punti-riepilogo">${riepilogoPuntiDelaunay}</p>
+                        <table class="nni-table">
+                            <tr>
+                                <td>Triangoli generati</td>
+                                <td>${triangolazione.statistiche.numeroTriangoli}</td>
+                            </tr>
+                        </table>
+                    `;
+                    this.aggiornaInfoboxBase('Triangolazione di Delaunay', contenutoInfoboxDelaunay, iconaHtmlDelaunay);
+                }
+            }
+
+            if (mostraVoronoiDelaunay) {
+                const { puntiCalcolo: puntiVoronoiCalcolo, puntiExtra: puntiVoronoiExtra } = this.otteniPuntiExtra(puntiUTM);
+                const riepilogoPuntiVD = this.generaRiepilogoPunti(puntiUTM, puntiVoronoiExtra);
+            
+                const risultatoVD = algoritmiGeometrici.voronoiDelaunay(puntiVoronoiCalcolo);
+                const intersezioni = risultatoVD.intersezioni;
+            
+                // Disegna le intersezioni
+                /*
+                if (intersezioni.length > 0) {
+                    intersezioni.forEach(i => {
+                        const [lon, lat] = proj4('EPSG:32632', 'EPSG:4326', [i.x, i.y]);                       
+                        
+                        // Aggiungi un marker per ogni intersezione
+                        this.mapManager.addCircle(lat, lon, 200, {
+                            color: getCSSVar('--color-bordeaux'),
+                            fillColor: getCSSVar('--color-bordeaux'),
+                            fillOpacity: 0.8,
+                            weight: 2,
+                        });                            
+                    });
+                }
+                */
+
+                // trova il baricentro delle intersezioni
+                const baricentro = algoritmiGeometrici.baricentro(intersezioni);
+                const [lonBaricentro, latBaricentro] = proj4('EPSG:32632', 'EPSG:4326', [baricentro.x, baricentro.y]);
+
+                const iconBaricentro = creaIconaCerchio('VD', '--color-bordeaux', '--bg-accent');
+                
+                this.mapManager.addIcon(latBaricentro, lonBaricentro, {
+                    html: iconBaricentro,
+                    popup: `<div class="popup-title">Baricentro delle intersezioni</div>`,
+                    tooltip: `Baricentro delle intersezioni`,
+                    permanentTooltip: mostraEtichette,
+                    iconAnchor: [10, 10]
+                });
+                
+                // trova il punto di intersezione più vicino al baricentro
+                const raggioMinimo = algoritmiGeometrici.calcolaRaggioMinimo(intersezioni, baricentro);
+
+                // disegna il cerchio di raggio minimo
+                this.mapManager.addCircle(latBaricentro, lonBaricentro, raggioMinimo, {
+                    color: getCSSVar('--color-bordeaux'),
+                    fillColor: getCSSVar('--color-bordeaux'),
+                    fillOpacity: 0.1,
+                    weight: 2
+                });
+                
+                // Aggiungi l'infobox per VoronoiDelaunay
+                const contenutoInfoboxVD = `
+                    <p class="coordinate">${latBaricentro.toFixed(4)}°N, ${lonBaricentro.toFixed(4)}°E</p>
+                    <p class="coordinate">UTM: ${Math.round(baricentro.x)}E, ${Math.round(baricentro.y)}N</p>
+                    <p class="punti-riepilogo">${riepilogoPuntiVD}</p>
+                    <table class="nni-table">
+                        <tr>
+                            <td>Intersezioni trovate</td>
+                            <td>${intersezioni.length}</td>
+                        </tr>
+                        <tr>
+                            <td>Raggio minimo</td>
+                            <td>${formattaDistanzaKm(raggioMinimo, 1)}</td>
+                        </tr>
+                    </table>
+                `;
+                this.aggiornaInfoboxBase('Intersezioni Voronoi-Delaunay', contenutoInfoboxVD, iconBaricentro);
             }
 
             // Cerchio di Canter
@@ -985,6 +1258,10 @@ class GeoAnalysisApp {
                 puntoCentro = algoritmiGeometrici.fermat(puntiCalcolo);
                 nomeAlgoritmo = 'Centro di Minima Distanza';
                 break;
+            case 'voronoiDelaunay':
+                puntoCentro = algoritmiGeometrici.voronoiDelaunay(puntiCalcolo);
+                nomeAlgoritmo = 'Intersezioni Voronoi-Delaunay';
+                break;
             default:
                 console.error(`Tipo di analisi non supportato: ${tipoAnalisi}`);
                 return;
@@ -1091,15 +1368,40 @@ function getCSSVar(name) {
     return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
-function creaCheckbox(label, checked = true) {
-    const safeLabel = escapeHtml(label);
+function creaCheckbox(item, checked = true, uniqueSuffix) { 
+    const safeLabel = escapeHtml(item.label);
+    // Genera un ID univoco per l'input checkbox, cruciale se si usasse <label for=...>
+    // Anche se non usiamo <label for>, un ID è buona pratica.
+    const checkboxId = `chk-${uniqueSuffix.replace(/[^a-zA-Z0-9-_]/g, '-')}`;
+
+    let linksHtml = '';
+    // Considero diverse possibili fonti di link nell'oggetto item
+    const linkSources = item.fonti || [];
+
+    if (linkSources && Array.isArray(linkSources) && linkSources.length > 0) {
+        linksHtml = linkSources.map(fonte => {
+            if (typeof fonte === 'string') { // Array di URL stringhe
+                return `<a href="${escapeHtml(fonte)}" target="_blank" rel="noopener noreferrer">${escapeHtml(fonte)}</a>`;
+            }
+            if (fonte && typeof fonte.url === 'string') { // Array di oggetti {nome, url} o {text, url}
+                const text = fonte.nome || fonte.text || fonte.url;
+                return `<a href="${escapeHtml(fonte.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`;
+            }
+            return ''; // Ignora formati non riconosciuti
+        }).filter(Boolean).join(''); // Filtra stringhe vuote e unisce
+    }
+
     return `
-        <label>
-            <input type="checkbox" ${checked ? 'checked' : ''} data-label="${safeLabel}">
-            ${safeLabel}
-        </label>
+        <div class="checkbox-container">
+            <div class="checkbox-control">
+                <input type="checkbox" id="${checkboxId}" ${checked ? 'checked' : ''} data-label="${safeLabel}">
+                <span class="checkbox-text-label" data-label="${safeLabel}">${safeLabel}</span>
+            </div>
+            ${linksHtml ? `<div class="checkbox-links-container">${linksHtml}</div>` : ''}
+        </div>
     `;
 }
+
 function creaIconaCerchio(carattere, coloreBordoVar, coloreSfondoVar, dimensionePx = 20, fontSizePx = 14) {
     const coloreBordo = getCSSVar(coloreBordoVar);
     const coloreSfondo = getCSSVar(coloreSfondoVar);
@@ -1121,6 +1423,7 @@ function creaIconaCerchio(carattere, coloreBordoVar, coloreSfondoVar, dimensione
             ${carattere}
         </div>`;
 }
+
 function generaPopupHtml(punto, centers) {
     const [lon, lat] = proj4('EPSG:32632', 'EPSG:4326', [punto.x, punto.y]);
 
@@ -1160,12 +1463,29 @@ function generaPopupHtml(punto, centers) {
     popupHtml += `</div>`;
     return popupHtml;
 }
+
 function formattaDistanzaKm(distanzaMetri, decimali = 1) {
     return `${(distanzaMetri / 1000).toFixed(decimali)} km`;
 }
+
+/*
+function convertiCoordinataUTM(lat, lon) {
+    return proj4('EPSG:32632', 'EPSG:4326', [lat, lon]);
+}
+    */
+
+function convertiUTMtoWGS84(x, y) {
+    return proj4('EPSG:32632', 'EPSG:4326', [x, y]);
+}
+
+function convertiWGS84toUTM(lat, lon) {
+    return proj4('EPSG:4326', 'EPSG:32632', [lon, lat]);
+}
+
 function escapeHtml(str) {
     const div = document.createElement('div');
     div.textContent = str;
     return div.innerHTML;
-}
+};
+
 window.addEventListener('DOMContentLoaded', () => new GeoAnalysisApp());
