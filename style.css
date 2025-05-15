@@ -85,6 +85,7 @@
 	--color-purple: #8E24AA;
 	--color-purple-light: #F3E5F5;
 	--color-bordeaux: #8B0000;
+	--color-black: #000000;
 	--bg-success: #E8F5E9;
 	--bg-warning: #FFF8E1;
 	--bg-accent: #EDE7F6;
@@ -118,6 +119,11 @@
 	--sidebar-width: 20rem;
 	--sidebar-collapsed-width: 3rem;
 	--sidebar-transition: all 0.3s ease;
+	--line-draw-weight-sm: 0.5;
+	--line-draw-weight-md: 1;
+	--line-draw-weight-lg: 2;
+	--line-draw-weight-xl: 3;
+
 }
 .dark-theme {
 	--gray-50: #2A2A2A;
@@ -248,9 +254,6 @@
 .dark-theme .leaflet-container {
 	background-color: var(--color-map-bg);
 }
-.dark-theme .leaflet-marker-icon {
-	filter: brightness(0.9);
-}
 .dark-theme .nni-table td:first-child {
 	color: var(--color-text);
 }
@@ -361,7 +364,7 @@ svg {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	margin-bottom: var(--sp-lg);
+	margin-bottom: var(--sp-sm);
 	padding-bottom: var(--sp-md);
 	border-bottom: var(--border-light);
 }
@@ -1214,10 +1217,10 @@ input[type="checkbox"] {
 }
 .dark-theme .custom-marker circle {
 	stroke-width: 2.5px;
-	filter: brightness(1.2);
+	/* filter: brightness(1.2); */
 }
 .dark-theme .leaflet-interactive {
-	filter: brightness(1.2);
+	/* filter: brightness(1.2); */
 	stroke-opacity: 0.9;
 }
 .map-selector {
@@ -1491,9 +1494,12 @@ input[type="checkbox"] {
 .map-marker-icon {
 	font-size: var(--fs-xl);
 	transition: transform 0.2s ease;
+	-webkit-text-stroke: 0.6px var(--color-white);
+	text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
 }
 .map-marker-icon:hover {
 	transform: scale(1.2);
+	text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.7);
 }
 .map-marker-icon:active {
 	transform: scale(1.2);
@@ -1511,7 +1517,7 @@ input[type="checkbox"] {
 	color: black;
 }
 .vittima-icon {
-	color: var(--color-primary-dark);
+	color: var(--color-bordeaux);
 }
 .white-icon {
 	color: var(--color-white);
@@ -1763,4 +1769,269 @@ input[type="checkbox"] {
 }
 .dark-theme .expand-analisi-btn:hover {
 	background-color: var(--gray-300);
+}
+
+/* Stili per sezione personalizzazione colori */
+.personalizza-colori-section {
+	margin-top: var(--sp-md);
+	padding: var(--sp-md);
+	background-color: var(--bg-muted);
+	border-radius: var(--radius-md);
+}
+
+.personalizza-colori-section h4 {
+	margin-top: 0;
+	margin-bottom: var(--sp-md);
+	font-size: var(--fs-md);
+	font-weight: 500;
+}
+
+.color-picker-item {
+	margin-bottom: var(--sp-md);
+	display: flex;
+	flex-direction: column;
+}
+
+.color-picker-item > label {
+	margin-bottom: var(--sp-xs);
+	font-size: var(--fs-sm);
+	color: var(--color-text);
+}
+
+.color-inputs {
+	display: flex;
+	gap: var(--sp-md);
+}
+
+.color-input-group {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+.color-input-group label {
+	font-size: var(--fs-xs);
+	margin-bottom: var(--sp-xxs);
+	color: var(--color-text-secondary);
+}
+
+.color-input-single {
+	margin-top: var(--sp-xs);
+}
+
+input[type="color"] {
+	width: 3rem;
+	height: 1.5rem;
+	padding: 0;
+	border: var(--border-thin);
+	border-radius: var(--radius-sm);
+	cursor: pointer;
+}
+
+input[type="color"]:focus {
+	outline: none;
+	border-color: var(--color-primary);
+	box-shadow: 0 0 0 1px var(--color-primary);
+}
+
+#reset-colori-btn {
+	margin-top: var(--sp-md);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	gap: var(--sp-xs);
+	width: 100%;
+}
+
+.dark-theme .personalizza-colori-section {
+	background-color: var(--gray-200);
+}
+
+.dark-theme .color-picker-item > label {
+	color: var(--color-text);
+}
+
+.dark-theme .color-input-group label {
+	color: var(--gray-600);
+}
+
+.dark-theme input[type="color"] {
+	border-color: var(--gray-400);
+	background-color: var(--gray-300);
+}
+
+.dark-theme input[type="color"]:focus {
+	border-color: var(--color-primary);
+}
+
+/* Stili per i pulsanti di selezione dei casi */
+.case-selector-container {
+	display: flex;
+	width: 100%;
+	margin-bottom: var(--sp-md);
+	border-radius: var(--radius-md);
+	overflow: hidden;
+	box-shadow: var(--shadow-sm);
+}
+
+.btn-case-selector {
+	flex: 1;
+	display: flex;
+	align-items: center;
+	gap: var(--sp-sm);
+	padding: var(--sp-sm) var(--sp-md);
+	font-weight: 500;
+	font-size: var(--fs-md);
+	border: 1px solid var(--gray-300);
+	background-color: var(--bg-muted);
+	color: var(--color-text);
+	transition: all 0.2s ease;
+	cursor: pointer;
+	position: relative;
+}
+
+.btn-case-selector:first-child {
+	border-radius: var(--radius-md) 0 0 var(--radius-md);
+	border-right: none;
+}
+
+.btn-case-selector:last-child {
+	border-radius: 0 var(--radius-md) var(--radius-md) 0;
+	border-left: none;
+}
+
+.btn-case-selector:hover {
+	background-color: var(--gray-200);
+}
+
+.btn-case-selector.active {
+	background-color: var(--color-primary);
+	color: white;
+	border-color: var(--color-primary);
+	box-shadow: var(--shadow-sm);
+}
+
+.btn-case-selector.active span {
+	color: white;
+}
+
+.btn-case-selector::before {
+	content: "";
+	width: 1.5rem;
+	height: 1.5rem;
+	background-size: contain;
+	background-repeat: no-repeat;
+	background-position: center;
+	display: block;
+	transition: transform 0.2s ease, filter 0.2s ease;
+	filter: grayscale(0.5);
+}
+
+.btn-case-selector:hover::before {
+	filter: grayscale(0);
+	transform: scale(1.1);
+}
+
+.btn-case-selector.active::before {
+	filter: brightness(0) invert(1);
+	transform: scale(1.1);
+}
+
+#select-case-mdf::before {
+	background-image: url('svg/mostroLogo.svg');
+}
+
+#select-case-zodiac::before {
+	background-image: url('svg/zodiacLogo.svg');
+}
+
+/* Tema scuro */
+.dark-theme .btn-case-selector {
+	background-color: var(--gray-200);
+	border-color: var(--gray-400);
+	color: var(--color-text);
+}
+
+.dark-theme .btn-case-selector:hover {
+	background-color: var(--gray-300);
+}
+
+.dark-theme .btn-case-selector.active {
+	background-color: var(--color-primary);
+	color: white;
+	border-color: var(--color-primary-dark);
+}
+
+.dark-theme .btn-case-selector.active span {
+	color: white;
+}
+
+/* Stili per i cerchi dei centri geometrici */
+.cerchio-centro {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+    transition: all 0.2s ease;
+}
+
+.cerchio-centro:hover {
+    filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.4));
+}
+
+.dark-theme .cerchio-centro {
+    filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+    opacity: 0.85;
+}
+
+.dark-theme .cerchio-centro:hover {
+    filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6));
+    opacity: 1;
+}
+
+/* Stili per le linee di regressione */
+.retta-regressione {
+    filter: drop-shadow(1px 2px 3px rgba(0, 0, 0, 0.3));
+    transition: all 0.2s ease;
+}
+
+.retta-regressione-estesa {
+    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+}
+
+.dark-theme .retta-regressione,
+.dark-theme .retta-regressione-estesa {
+    filter: drop-shadow(1px 2px 3px rgba(0, 0, 0, 0.5));
+}
+
+/* Assicura che il popup tabella abbia abbastanza spazio */
+.popup-container {
+    min-width: 250px;
+}
+
+/* Stili per tabella ordinabile nei popup */
+.sortable-table .sort-header {
+    cursor: pointer;
+    position: relative;
+    user-select: none;
+    transition: color 0.2s;
+}
+
+.sortable-table .sort-header:hover {
+    color: var(--color-primary);
+}
+
+.sortable-table .sort-icon {
+    margin-left: 4px;
+    font-size: 10px;
+    display: inline-block;
+    vertical-align: middle;
+}
+
+
+.non-interactive-polygon {
+    pointer-events: none !important;
+}
+.leaflet-interactive {
+    pointer-events: auto;
+}
+.non-interactive-polygon.leaflet-interactive {
+    pointer-events: none !important;
 }

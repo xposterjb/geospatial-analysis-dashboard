@@ -20,6 +20,7 @@
 
     <!-- Sidebar -->
     <aside class="controls" aria-label="Filtri mappa">
+
       <div class="sidebar-header">
         <h2>
           <span class="material-icons" aria-hidden="true">tune</span>
@@ -30,11 +31,17 @@
         </button>
       </div>
 
-      <!-- Delitti MdF -->
+      <!-- Pulsanti Selezione Caso -->
+      <div class="case-selector-container">
+        <button id="select-case-mdf" class="btn btn-case-selector active" data-case="mdf"><span>MdF</span></button>
+        <button id="select-case-zodiac" class="btn btn-case-selector" data-case="zodiac"><span>Zodiac</span></button>
+      </div>
+
+      <!-- Delitti -->
       <details class="control-group accordion" aria-label="Filtri Delitti MdF">
         <summary>
           <span class="material-icons" aria-hidden="true">warning</span>
-          Delitti MdF
+          Delitti Principali
         </summary>
         <div class="checkbox-header">
           <button class="btn-mini select-all" data-target="delitti-checkbox">Seleziona tutti</button>
@@ -137,15 +144,23 @@
             <input type="checkbox" id="analisi-canter-center" />
             Cerchio di Canter
           </label>
-          <label
-            title="Stima la probabile zona di residenza del colpevole pesando i punti in base a distanza, tempo e tipologia.">
-            <input type="checkbox" id="analisi-cpr" />
-            Centro di Probabile Residenza
-          </label>
           <label title="Disegna il poligono convesso minimo che racchiude i delitti attivi.">
             <input type="checkbox" id="analisi-chp" />
             Convex Hull (CHP)
           </label>
+          <label title="Calcola la retta di regressione lineare tra i delitti selezionati.">
+            <input type="checkbox" id="analisi-regressione" />
+            Retta di Regressione Lineare
+          </label>
+          <label title="Collega i delitti attivi in ordine cronologico.">
+            <input type="checkbox" id="analisi-percorso-cronologico" />
+            Percorso Cronologico Delitti
+          </label>
+          <label
+            title="Stima la probabile zona di residenza del colpevole pesando i punti in base a distanza, tempo e tipologia.">
+            <input type="checkbox" id="analisi-cpr" />
+            Centro di Probabile Residenza
+          </label>          
           <label title="Calcola la distanza media tra tutte le coppie di punti.">
             <input type="checkbox" id="analisi-mid" />
             Mean Interpoint Distance (MID)
@@ -165,7 +180,7 @@
           <label title="Calcola il baricentro delle intersezioni tra i poligoni di Voronoi e Delaunay.">
             <input type="checkbox" id="analisi-voronoi-delaunay" />
             Baricentro intersezioni Voronoi e Delaunay
-          </label>
+          </label>          
         </div>
       </details>
 
@@ -230,6 +245,8 @@
               </div>
             </div>
           </div>
+
+
         </div>
       </details>
 
@@ -399,7 +416,7 @@
           </li>
           <li class="legend-item">
             <div class="legend-icon-wrapper">
-              <span class="material-icons" style="color: var(--color-primary-dark);" aria-hidden="true">home</span>
+              <span class="material-icons" style="color: var(--color-bordeaux);" aria-hidden="true">home</span>
             </div>
             Abitazione Vittima
           </li>
@@ -420,7 +437,7 @@
           <li class="legend-item">
             <div class="legend-icon-wrapper">
               <div class="legend-marker special"
-                style="background: var(--bg-success); border: 2px solid var(--color-danger); color: var(--color-danger);">
+                style="background: var(--bg-danger); border: 2px solid var(--color-danger); color: var(--color-danger);">
                 M</div>
             </div>
             Mediana
@@ -428,7 +445,7 @@
           <li class="legend-item">
             <div class="legend-icon-wrapper">
               <div class="legend-marker special"
-                style="background: var(--bg-warning); border: 2px solid var(--color-warning); color: var(--color-warning);">
+                style="background: var(--bg-purple-light); border: 2px solid var(--color-purple); color: var(--color-purple);">
                 F</div>
             </div>
             Centro di Minima Distanza
@@ -477,6 +494,46 @@
             </div>
             Nearest Neighbour Index
           </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <svg width="20" height="20" aria-hidden="true">
+                <line x1="0" y1="10" x2="20" y2="10" stroke="var(--color-danger)" stroke-width="2"/>
+              </svg>
+            </div>
+            Retta di Regressione
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <svg width="20" height="20" aria-hidden="true">
+                <polyline points="2,18 7,5 13,15 18,2" fill="none" stroke="var(--color-secondary)" stroke-width="2" stroke-dasharray="2,1" />
+              </svg>
+            </div>
+            Percorso Cronologico
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <svg width="20" height="20" class="legend-voronoi" aria-hidden="true">
+                <path d="M0,0 L20,0 L10,20 Z" fill="none" stroke="var(--color-primary-dark)" stroke-width="1" opacity="0.7" />
+              </svg>
+            </div>
+            Poligoni di Voronoi
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <svg width="20" height="20" class="legend-delaunay" aria-hidden="true">
+                <path d="M2,2 L18,2 L10,18 Z" fill="none" stroke="var(--color-danger)" stroke-width="1" />
+              </svg>
+            </div>
+            Triangolazione Delaunay
+          </li>
+          <li class="legend-item">
+            <div class="legend-icon-wrapper">
+              <div class="legend-marker special"
+                style="background: var(--bg-muted); border: 2px solid var(--color-bordeaux); color: var(--color-bordeaux); font-size: 8px;">
+                VD</div>
+            </div>
+            Baricentro Voronoi-Delaunay
+          </li>
         </ul>
       </section>
     </aside>
@@ -485,18 +542,20 @@
 
   <!-- Librerie JavaScript -->
   <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
-  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js" defer></script>
-  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js" defer></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js" defer></script>
-  <script src="https://unpkg.com/leaflet-geometryutil@0.10.1/src/leaflet.geometryutil.js" defer></script>
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.heat/dist/leaflet-heat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
+  <script src="https://unpkg.com/leaflet-geometryutil@0.10.1/src/leaflet.geometryutil.js"></script>
   <!-- Script dell'applicazione -->
-  <script src="js/config.js" defer></script>
-  <script src="js/data.js" defer></script>
-  <script src="js/algorithms.js" defer></script>
-  <script src="js/mapManager.js" defer></script>
-  <script src="js/geoAnalysis.js" defer></script>
-  <script src="js/tema.js" defer></script>
+  <script src="js/config.js"></script>
+  <script src="js/data.js"></script>
+  <script src="js/zodiacData.js"></script>
+  <script src="js/algorithms.js"></script>
+  <script src="js/mapManager.js"></script>
+  <script src="js/mapElementsRenderer.js"></script>
+  <script src="js/geoAnalysis.js"></script>
+  <script src="js/tema.js"></script>
 </body>
 
 </html>
