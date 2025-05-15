@@ -418,18 +418,6 @@ const zodiacData = {
             { url: 'https://www.zodiackillerinfo.com/blue-rock-springs', nome: 'ZodiacKillerInfo.com - Blue Rock Springs' },
             { url: 'https://zodiackiller.com/CheneyTranscript.txt', nome: 'ZodiacKiller.com - Cheney Transcript' }
         ],
-
-        // Arthur Leigh Allen
-        // Da verificare
-        /*
-        [
-            38.0150, -122.5389,
-            'Casa Arthur Leigh Allen',
-            null,
-            { url: 'https://en.wikipedia.org/wiki/Arthur_Leigh_Allen', nome: 'Wikipedia' }
-        ],
-        */
-
         // Trailer Arthur Leigh Allen
         [
             38.40503676040336, -122.7147494291102,
@@ -445,20 +433,28 @@ const zodiacData = {
             null,
             { url: 'https://www.zodiackillerinfo.com/arthur-leigh-allen', nome: 'ZodiacKillerInfo.com - Arthur Leigh Allen' }
         ],
-
         // Ross Sullivan
+        // 512 2nd Street Apt 2 Santa Cruz, CA
         [
-            33.9805, -117.3754,
+            36.9652190917106, -122.02344093187588,
             'Casa Ross Sullivan',
-            null
+            null,
+            { url: 'https://www.shadowofthezodiac.com/suspects/ross-sullivan/', nome: 'ShadowOfZodiac.com - Ross Sullivan' }
         ],
-
         // Richard Gaikowski
+        // 2377 Bush Street, San Francisco, CA
         [
-            37.78645975608931, -122.43630309308324,
-            
-            'Casa Rich. Gaikowski',
-            null
+            37.78645975608931, -122.43630309308324,            
+            'Casa Rich. Gaikowski 68',
+            null,
+            { url: 'https://www.shadowofthezodiac.com/suspects/richard-gaikowski/', nome: 'ShadowOfZodiac.com - Richard Gaikowski' }
+        ],
+        // 217 Eddy Street, San Francisco, CA
+        [
+            37.784107161104025, -122.41136894719148,
+            'Casa Lawrence Kane 68',
+            null,
+            { url: 'https://www.shadowofthezodiac.com/suspects/lawrence-kane/', nome: 'ShadowOfZodiac.com - Lawrence Kane' }
         ]
     ],
 
