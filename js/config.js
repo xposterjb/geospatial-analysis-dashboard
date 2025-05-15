@@ -4,10 +4,14 @@
  * 
  * Definisce:
  * - La proiezione UTM per l'Italia centro-nord (zona 32)
+ * - La proiezione UTM per la California (zona 10)
  * - Parametri per gli algoritmi (precisione, tolleranze, iterazioni)
  */
 
 proj4.defs("EPSG:32632", "+proj=utm +zone=32 +ellps=WGS84 +datum=WGS84 +units=m +no_defs");
+
+// Definizione della proiezione UTM zona 10 (California)
+proj4.defs("EPSG:32610", "+proj=utm +zone=10 +ellps=WGS84 +datum=WGS84 +units=m +no_defs");
 
 // Costanti
 window.SQRT_EPSILON = 1e-8;
@@ -16,7 +20,7 @@ window.MAX_ITERATIONS = 100;
 window.POSITION_TOLERANCE = 1e-8;
 // Costanti per lo slider temporale
 window.ANNO_MIN_SLIDER       = 1968;
-window.ANNO_MAX_SLIDER       = 2005;
+window.ANNO_MAX_SLIDER       = 2025;
 window.ANNO_INIZIALE_SLIDER  = 1985;
 // Costanti CPR
 window.JOURNEY_RADIUS = 5000; // Soglia raggio 5km

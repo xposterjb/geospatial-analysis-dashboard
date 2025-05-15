@@ -67,14 +67,23 @@ class GestoreTema {
                 document.querySelectorAll('svg polygon[stroke="black"]').forEach(el => {
                     el.setAttribute('stroke', 'currentColor');
                 });
+                
+                // Forza un aggiornamento completo della visualizzazione
+                if (window.geoAnalisi.mapManager.clear) {
+                    window.geoAnalisi.mapManager.clear();
+                }
+                
                 const temaAttuale = document.documentElement.getAttribute('data-theme');                
                 map.invalidateSize();
                 
-                if (window.geoAnalisi.aggiornaVisualizzazione) {
-                    window.geoAnalisi.aggiornaVisualizzazione();
-                }
+                // Aggiungiamo un ulteriore timeout per assicurarci che il DOM sia completamente aggiornato
+                setTimeout(() => {
+                    if (window.geoAnalisi.aggiornaVisualizzazione) {
+                        window.geoAnalisi.aggiornaVisualizzazione();
+                    }
+                }, 150);
             }
-        }, 100);
+        }, 200); // Aumentiamo il timeout iniziale
     }
 }
 

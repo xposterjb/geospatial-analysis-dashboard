@@ -22,14 +22,13 @@
 class GeoAnalysisApp {
     constructor() {
         this.mapManager = new MapManager();
+        this.casoAttivo = this.getCasoAttivoFromURL();
 
-        this.datasets = {
-            delitti: convertiInUTM(rawData.delitti),
-            puntiInteresse: convertiInUTM(rawData.puntiInteresse),
-            abitazioniSospettati: convertiInUTM(rawData.abitazioniSospettati),
-            abitazioniVittime: convertiInUTM(rawData.abitazioniVittime),
-            omicidiCollaterali: convertiInUTM(rawData.omicidiCollaterali)
-        };
+        // Rendi disponibile globalmente il caso attivo
+        window.casoAttivo = this.casoAttivo;
+
+        this.caricaDataset();
+        this.centraMappa();
 
         this.defaultConfig = {
             JOURNEY_RADIUS: 5000,
@@ -47,30 +46,36 @@ class GeoAnalysisApp {
         this.manualSelections = new Set();
         this.infoboxContent = null;
 
+        this.configurazione = {
+            mostraCerchiStandardCenter: true,
+            mostraCerchioCanter: true,
+            opacitaCerchi: 0.15
+        };
+
         this.inizializzaControlliCheckboxLinks();
         this.inizializzaControlli();
         this.aggiornaVisualizzazione();
     }
 
+    chiudiCheckboxLinksAperto() {
+        if (window._checkboxLinksOpened) {
+            window._checkboxLinksOpened.classList.remove('expanded');
+            window._checkboxLinksOpened = null;
+        }
+    }
     inizializzaControlliCheckboxLinks() {
         if (!window._checkboxLinksGlobalListener) {
             window._checkboxLinksOpened = null;
 
             document.addEventListener('click', (e) => {
                 if (!e.target.classList.contains('checkbox-text-label') && !e.target.closest('.checkbox-links-container')) {
-                    if (window._checkboxLinksOpened) {
-                        window._checkboxLinksOpened.classList.remove('expanded');
-                        window._checkboxLinksOpened = null;
-                    }                
+                    this.chiudiCheckboxLinksAperto();
                 }
             });
 
             document.addEventListener('keydown', (e) => {
                 if (e.key === 'Escape') {
-                    if (window._checkboxLinksOpened) {
-                        window._checkboxLinksOpened.classList.remove('expanded');
-                        window._checkboxLinksOpened = null;
-                    }
+                    this.chiudiCheckboxLinksAperto();
                 }
             });
             window._checkboxLinksGlobalListener = true;
@@ -87,6 +92,7 @@ class GeoAnalysisApp {
         this.configuraSelezionaDeseleziona();
         this.configuraElementiCollassabili();
         this.configuraInclusionePOI();
+        this.configuraSwitchCaso();
     }
 
     configuraCheckboxes() {
@@ -113,14 +119,6 @@ class GeoAnalysisApp {
             return creaCheckbox(originalItem || item, checked, `${containerId}-${index}`);
         }).join('');
 
-        function chiudiDivLinksApertoLocal() {
-            if (window._checkboxLinksOpened) {
-                window._checkboxLinksOpened.classList.remove('expanded');
-                window._checkboxLinksOpened = null;
-            }
-        }
-
-        // Listener su ogni label testuale
         container.querySelectorAll('.checkbox-text-label').forEach(labelElement => {
             labelElement.addEventListener('click', (event) => {
                 event.stopPropagation();
@@ -133,7 +131,7 @@ class GeoAnalysisApp {
                 const linksContainer = parentCheckboxContainer.querySelector('.checkbox-links-container');
 
                 if (!linksContainer) {
-                    chiudiDivLinksApertoLocal();
+                    this.chiudiCheckboxLinksAperto();
                     return;
                 }
 
@@ -141,7 +139,7 @@ class GeoAnalysisApp {
                     linksContainer.classList.remove('expanded');
                     window._checkboxLinksOpened = null;
                 } else {
-                    chiudiDivLinksApertoLocal();
+                    this.chiudiCheckboxLinksAperto();
                     linksContainer.classList.add('expanded');
                     window._checkboxLinksOpened = linksContainer;
                 }
@@ -168,6 +166,9 @@ class GeoAnalysisApp {
             '#analisi-voronoi',
             '#analisi-delaunay',
             '#analisi-voronoi-delaunay',
+            '#analisi-kde',
+            '#analisi-regressione',
+            '#analisi-percorso-cronologico',
             '#mostra-etichette'
         ].join(', ');
 
@@ -256,75 +257,65 @@ class GeoAnalysisApp {
 
     configuraAggiungiPunto() {
         const btnAggiungi = document.getElementById('aggiungi-punto-btn');
-        const infoBox = document.getElementById('aggiungi-info');
-        const inputNome = document.getElementById('nome-punto');
+        const modal = document.getElementById('aggiungi-punto-modal');
+        const inputNome = document.getElementById('nuovo-punto-nome');
+        const inputLat = document.getElementById('nuovo-punto-lat');
+        const inputLon = document.getElementById('nuovo-punto-lon');
         const btnSalva = document.getElementById('salva-punto-btn');
         const btnAnnulla = document.getElementById('annulla-punto-btn');
-        let nuovoPunto = null; // Variabile temporanea per il punto da aggiungere
-        let markerTemporaneo = null;
+        const mapContainer = document.getElementById('map-container');
+        const mapElement = document.getElementById('map');
+
+        let nuovoPunto = null;
+        let tempMarker = null;
 
         const resetUIPuntoInteresse = () => {
-            btnAggiungi.disabled = false;
-            btnAggiungi.classList.remove('disabled');
-            infoBox.style.display = 'none';
-            inputNome.style.display = 'none';
-            btnSalva.parentElement.style.display = 'none';
+            modal.style.display = 'none';
             inputNome.value = '';
+            inputLat.value = '';
+            inputLon.value = '';
             nuovoPunto = null;
-            if (markerTemporaneo) {
-                this.mapManager.removeMarker(markerTemporaneo);
-                markerTemporaneo = null;
+            // Rimuove il marker temporaneo se presente
+            if (tempMarker) {
+                this.mapManager.removeMarker(tempMarker);
+                tempMarker = null;
             }
+            mapContainer.style.cursor = '';
         };
 
-        const verificaSalvabile = () => {
-            // Disabilita il pulsante salva se non c'è un nome o non è stato selezionato un punto
-            const nomeValido = inputNome.value.trim().length > 0;
-            btnSalva.disabled = !nomeValido || !nuovoPunto;
-            btnSalva.classList.toggle('disabled', !nomeValido || !nuovoPunto);
+        // Handler per la selezione del punto sulla mappa
+        const handleMapClick = (e) => {
+            const lat = e.latlng.lat;
+            const lon = e.latlng.lng;
+            // Aggiorna il form con le coordinate
+            inputLat.value = lat.toFixed(6);
+            inputLon.value = lon.toFixed(6);
+
+            nuovoPunto = { lat, lon };
+            // Aggiunge un marker temporaneo
+            if (tempMarker) {
+                this.mapManager.removeMarker(tempMarker);
+            }
+            tempMarker = this.mapManager.addIcon(lat, lon, {
+                html: MapElementsRenderer.creaMarkerPuntoInteresse(),
+                className: 'temp-marker'
+            });
         };
 
         btnAggiungi.addEventListener('click', () => {
-            btnAggiungi.disabled = true;
-            btnAggiungi.classList.add('disabled');
-            infoBox.style.display = 'block';
-            inputNome.style.display = 'none';
-            btnSalva.parentElement.style.display = 'none';
-            inputNome.value = '';
-            nuovoPunto = null;
-            btnSalva.disabled = true;
-            btnSalva.classList.add('disabled');
-
-            // Attiva il listener per il click sulla mappa
-            this.mapManager.map.once('click', ({ latlng: { lat, lng } }) => {
-                nuovoPunto = { lat, lon: lng };
-                markerTemporaneo = this.mapManager.addPoint(lat, lng, {
-                    color: getCSSVar('--color-warning'), radius: 8,
-                    strokeColor: getCSSVar('--color-warning'), strokeWidth: 2,
-                    popup: 'Nuovo punto'
-                });
-                inputNome.style.display = 'block';
-                btnSalva.parentElement.style.display = 'flex';
-                inputNome.focus();
-                verificaSalvabile();
-            });
+            modal.style.display = 'block';
+            mapContainer.style.cursor = 'crosshair';
+            this.mapManager.onceClick(handleMapClick);
         });
 
-        inputNome.addEventListener('input', verificaSalvabile);
         btnAnnulla.addEventListener('click', resetUIPuntoInteresse);
-        document.addEventListener('keydown', function (e) {
-            if (e.key === 'Escape' && btnAggiungi.disabled) {
-                resetUIPuntoInteresse();
-            }
-        });
 
         btnSalva.addEventListener('click', () => {
-            const nome = escapeHtml(inputNome.value.trim());
-            // Verifica che un nome sia stato inserito e un punto selezionato
+            const nome = MapElementsRenderer.escapeHtml(inputNome.value.trim());
             if (!nome || !nuovoPunto) return;
             // Converte il punto in UTM e lo aggiunge al dataset dei Punti di Interesse
-            const [x, y] = proj4('EPSG:4326', 'EPSG:32632', [nuovoPunto.lon, nuovoPunto.lat]);
-            const [lonWGS, latWGS] = convertiUTMtoWGS84(x, y);
+            const [x, y] = convertiWGS84toUTM(nuovoPunto.lon, nuovoPunto.lat, this.casoAttivo);
+            const [lonWGS, latWGS] = convertiUTMtoWGS84(x, y, this.casoAttivo);
 
             const nuovo = {
                 ...nuovoPunto,
@@ -337,9 +328,9 @@ class GeoAnalysisApp {
 
             const container = document.getElementById('punti-interesse-checkbox');
             if (container) {
-                container.insertAdjacentHTML('beforeend', creaCheckbox(nuovo.label, true));
+                container.insertAdjacentHTML('beforeend', creaCheckbox(nuovo, true, `pi-${Date.now()}`));
 
-                const newCheckbox = container.querySelector(`input[data-label="${nuovo.label}"]`);
+                const newCheckbox = container.querySelector(`input[data-label="${nome}"]`);
                 if (newCheckbox) {
                     newCheckbox.addEventListener('change', () => {
                         this.aggiornaVisualizzazione();
@@ -375,7 +366,6 @@ class GeoAnalysisApp {
 
             this.configSliders[config.variable] = { slider: sliderElement, value: valueElement, config };
 
-            // Usa il valore globale se esiste, altrimenti il default
             let initialValue = window[config.variable] ?? this.defaultConfig[config.variable];
             let displayValue = initialValue;
 
@@ -449,10 +439,8 @@ class GeoAnalysisApp {
             </div>
         `;
         this.mapManager.addLegend(legendaHTML, { position: 'bottomright' });
-        
-        // Ottieni il riferimento all'elemento content per aggiornamenti futuri
         this.infoboxContent = document.querySelector('.map-legend-unified .legend-content');
-        
+
         // Aggiungi il pulsante che appare quando il pannello è collassato
         const infoboxContainer = document.querySelector('.map-legend-unified').parentNode;
         const expandBtnHTML = `
@@ -461,17 +449,17 @@ class GeoAnalysisApp {
             </button>
         `;
         infoboxContainer.insertAdjacentHTML('beforeend', expandBtnHTML);
-        
+
         // Aggiungi i listener per i pulsanti di chiusura/apertura
         const toggleBtn = document.querySelector('.toggle-analisi-btn');
         const expandBtn = document.querySelector('.expand-analisi-btn');
         const infobox = document.querySelector('.map-legend-unified');
-        
+
         toggleBtn.addEventListener('click', () => {
             infobox.classList.add('collapsed');
             expandBtn.style.display = 'flex';
         });
-        
+
         expandBtn.addEventListener('click', () => {
             infobox.classList.remove('collapsed');
             expandBtn.style.display = 'none';
@@ -501,54 +489,20 @@ class GeoAnalysisApp {
         headerElement.addEventListener('click', () => {
             nuovaSezione.classList.toggle('collapsed');
         });
-
         this.infoboxContent.appendChild(nuovaSezione);
     }
 
     // Funzione helper per generare il contenuto HTML di una infobox standard per i centri
     creaContenutoInfobox(titolo, iconHtml, color, centerPoint, puntiUTM, riepilogoPunti) {
-        const [lon, lat] = convertiUTMtoWGS84(centerPoint.x, centerPoint.y);
-        let minDist = Infinity;
-        let maxDist = 0;
-        let sommaDistanze = 0;
-
-        // Calcola statistiche sulle distanze
-        if (puntiUTM && puntiUTM.length > 0) {
-            puntiUTM.forEach(p => {
-                const dist = Math.hypot(p.x - centerPoint.x, p.y - centerPoint.y);
-                if (dist < minDist) minDist = dist;
-                if (dist > maxDist) maxDist = dist;
-                sommaDistanze += dist;
-            });
-        }
-        else {
-            minDist = 0;
-            maxDist = 0;
-        }
-
-        const deviazioneStandard = algoritmiGeometrici.calcolaDeviazioneStandardDistanze(puntiUTM, centerPoint);
-        const distanzaMedia = puntiUTM && puntiUTM.length > 0 ? sommaDistanze / puntiUTM.length : 0;
-
-        // Codice per aggiungere alre distanze        
-        // <tr><td>Distanza minima</td><td>${formattaDistanzaKm(minDist)}</td></tr>
-        // <tr><td>Distanza massima</td><td>${formattaDistanzaKm(maxDist)}</td></tr>
-        // <tr><td>Deviazione standard</td><td>${formattaDistanzaKm(deviazioneStandard)}</td></tr>
-        // <tr><td>Punti considerati</td><td>${puntiUTM.length}</td></tr>
-
-        const riepilogoHtml = riepilogoPunti
-            ? `<p class="punti-riepilogo">${riepilogoPunti}</p>`
-            : '';
-
-        return `
-            <p class="coordinate">${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E</p>
-            <p class="coordinate">UTM: ${Math.round(centerPoint.x)}E, ${Math.round(centerPoint.y)}N</p>
-            ${riepilogoHtml}
-            ${puntiUTM && puntiUTM.length > 0 ? `
-                <table class="nni-table">
-                    <tr><td>Distanza media</td><td>${formattaDistanzaKm(distanzaMedia)}</td></tr>
-                </table>
-            ` : '<p>Nessun punto attivo per l\'analisi.</p>'}
-        `;
+        return MapElementsRenderer.creaContenutoInfobox(
+            titolo,
+            iconHtml,
+            color,
+            centerPoint,
+            puntiUTM,
+            riepilogoPunti,
+            this.casoAttivo
+        );
     }
 
     // Metodo helper per recuperare elementi attivi da un dataset in base allo stato dei checkbox
@@ -567,18 +521,15 @@ class GeoAnalysisApp {
         // Filtra per l'anno corrente dello slider
         return [...originali, ...collaterali].filter(d => d.year <= annoCorrente);
     }
-
     getAbitazioniSospettatiAttivi() {
         return this.getCheckboxSelezionati(this.datasets.abitazioniSospettati, '#abitazioni-sospettati-checkbox');
     }
     getAbitazioniVittimeAttivi() {
         return this.getCheckboxSelezionati(this.datasets.abitazioniVittime, '#abitazioni-vittime-checkbox');
     }
-
     getPuntiInteresseAttivi() {
         return this.getCheckboxSelezionati(this.datasets.puntiInteresse, '#punti-interesse-checkbox');
     }
-
     otteniPuntiExtra(puntiBase) {
         const puntiInteresse = this.getPuntiInteresseAttivi();
         const abitazioniSospettati = this.getAbitazioniSospettatiAttivi();
@@ -590,7 +541,6 @@ class GeoAnalysisApp {
             abitSosp: [],
             abitVitt: []
         };
-
         // Verifica se includere i punti nei calcoli
         const includiPOI = document.getElementById('includi-poi-switch')?.checked;
         if (includiPOI) {
@@ -640,12 +590,13 @@ class GeoAnalysisApp {
         else {
             this.infoboxContent.innerHTML = '';
         }
-
         // Recupera i dati attivi basati sullo stato dei checkbox e dello slider temporale
         const delittiAttivi = this.getDelittiAttivi();
         const puntiInteresse = this.getPuntiInteresseAttivi();
         const abitazioniSospettati = this.getAbitazioniSospettatiAttivi();
         const abitazioniVittime = this.getAbitazioniVittimeAttivi();
+
+        let puntiUTM = [];
 
         // Controlla quali analisi sono richieste
         const mostraCentroide = document.getElementById('analisi-baricentro').checked;
@@ -660,10 +611,12 @@ class GeoAnalysisApp {
         const mostraVoronoi = document.getElementById('analisi-voronoi').checked;
         const mostraDelaunay = document.getElementById('analisi-delaunay').checked;
         const mostraVoronoiDelaunay = document.getElementById('analisi-voronoi-delaunay').checked;
+        const mostraRegressione = document.getElementById('analisi-regressione')?.checked;
+        const mostraPercorsoCronologico = document.getElementById('analisi-percorso-cronologico')?.checked;
         const centers = [];
 
         if (delittiAttivi.length > 0) {
-            const puntiUTM = delittiAttivi.map(p => ({ x: p.x, y: p.y }));
+            puntiUTM = delittiAttivi.map(p => ({ x: p.x, y: p.y }));
 
             if (mostraCentroide) {
                 this.visualizzaCentroGeometrico(
@@ -671,84 +624,84 @@ class GeoAnalysisApp {
                     'baricentro',
                     'B',
                     '--color-success',
-                    '--bg-success',
+                    '--color-white',
                     'Baricentro',
                     centers,
                     mostraEtichette
                 );
             }
-
             if (mostraMediana) {
                 this.visualizzaCentroGeometrico(
                     puntiUTM,
                     'mediana',
                     'M',
                     '--color-danger',
-                    '--bg-success',
+                    '--color-white',
                     'Mediana',
                     centers,
                     mostraEtichette
                 );
             }
-
             if (mostraFermat) {
                 this.visualizzaCentroGeometrico(
                     puntiUTM,
                     'fermat',
                     'F',
                     '--color-warning',
-                    '--bg-warning',
+                    '--color-white',
                     'Centro di Minima Distanza',
                     centers,
                     mostraEtichette
                 );
             }
-
             if (mostraVoronoi && delittiAttivi.length >= 2) {
 
                 const { puntiCalcolo: puntiVoronoiCalcolo, puntiExtra: puntiVoronoiExtra } = this.otteniPuntiExtra(puntiUTM);
                 const riepilogoPuntiVoronoi = this.generaRiepilogoPunti(puntiUTM, puntiVoronoiExtra);
 
-                const poligoni = algoritmiGeometrici.voronoi(puntiVoronoiCalcolo);
+                try {
+                    const poligoni = algoritmiGeometrici.voronoi(puntiVoronoiCalcolo);
 
-                if (poligoni.length > 0) {
-                    poligoni.forEach(p => {
-                        const latlngs = p.polygon.map(([x, y]) => {
-                            const [lon, lat] = proj4('EPSG:32632', 'EPSG:4326', [x, y]);
-                            return [lat, lon];
+                    if (poligoni.length > 0) {
+                        poligoni.forEach(p => {
+                            const latlngs = p.polygon.map(([x, y]) => {
+                                const [lon, lat] = convertiUTMtoWGS84(x, y, this.casoAttivo);
+                                return [lat, lon];
+                            });
+                            this.mapManager.addPolygon(latlngs, {
+                                color: getCSSVar('--color-primary-dark'),
+                                weight: getCSSVar('--line-draw-weight-lg'),
+                                opacity: 0.8,
+                                fillOpacity: 0.1
+                            });
                         });
 
-                        this.mapManager.addPolygon(latlngs, {
-                            color: getCSSVar('--color-primary-dark'),
-                            weight: 2,
-                            fillOpacity: 0.1
-                        });
-                    });
-                    
-                    const iconaHtmlVoronoi = `
-                        <div style="
-                            width: 20px;
-                            height: 20px;
-                            border: 2px solid ${getCSSVar('--color-primary-dark')};
-                            background: rgba(0, 0, 255, 0.1);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-weight: 500;
-                            font-size: 8px;
-                            color: ${getCSSVar('--color-primary-dark')};">VR</div>
-                    `;
-
-                    const contenutoInfoboxVoronoi = `
-                        <p class="punti-riepilogo">${riepilogoPuntiVoronoi}</p>
-                        <table class="nni-table">
-                            <tr>
-                                <td>Poligoni generati</td>
-                                <td>${poligoni.length}</td>
-                            </tr>
-                        </table>
-                    `;
-                    this.aggiornaInfoboxBase('Diagramma di Voronoi', contenutoInfoboxVoronoi, iconaHtmlVoronoi);
+                        const iconaHtmlVoronoi = `
+                            <div style="
+                                width: 20px;
+                                height: 20px;
+                                border: 2px solid ${getCSSVar('--color-primary-dark')};
+                                background: rgba(0, 0, 255, 0.1);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-weight: 500;
+                                font-size: 8px;
+                                color: ${getCSSVar('--color-primary-dark')};">VR</div>
+                        `;
+                        const contenutoInfoboxVoronoi = `
+                            <p class="punti-riepilogo">${riepilogoPuntiVoronoi}</p>
+                            <table class="nni-table">
+                                <tr>
+                                    <td>Poligoni generati</td>
+                                    <td>${poligoni.length}</td>
+                                </tr>
+                            </table>
+                        `;
+                        this.aggiornaInfoboxBase('Diagramma di Voronoi', contenutoInfoboxVoronoi, iconaHtmlVoronoi);
+                    }
+                } catch (error) {
+                    console.error("Errore nel calcolo dei poligoni di Voronoi:", error);
                 }
             }
 
@@ -756,144 +709,138 @@ class GeoAnalysisApp {
                 const { puntiCalcolo: puntiDelaunayCalcolo, puntiExtra: puntiDelaunayExtra } = this.otteniPuntiExtra(puntiUTM);
                 const riepilogoPuntiDelaunay = this.generaRiepilogoPunti(puntiUTM, puntiDelaunayExtra);
 
-                const triangolazione = algoritmiGeometrici.delaunay(puntiDelaunayCalcolo);
+                try {
+                    const triangolazione = algoritmiGeometrici.delaunay(puntiDelaunayCalcolo);
 
-                if (triangolazione && triangolazione.triangoli) {
-                    triangolazione.triangoli.forEach(triangolo => {
-                        const puntoA = triangolo.punti[0];
-                        const puntoB = triangolo.punti[1];
-                        const puntoC = triangolo.punti[2];
+                    if (triangolazione && triangolazione.triangoli) {
+                        triangolazione.triangoli.forEach(triangolo => {
+                            const puntoA = triangolo.punti[0];
+                            const puntoB = triangolo.punti[1];
+                            const puntoC = triangolo.punti[2];
 
-                        const [lon1, lat1] = proj4('EPSG:32632', 'EPSG:4326', [puntoA.x, puntoA.y]);
-                        const [lon2, lat2] = proj4('EPSG:32632', 'EPSG:4326', [puntoB.x, puntoB.y]);
-                        const [lon3, lat3] = proj4('EPSG:32632', 'EPSG:4326', [puntoC.x, puntoC.y]);
+                            const [lon1, lat1] = convertiUTMtoWGS84(puntoA.x, puntoA.y, this.casoAttivo);
+                            const [lon2, lat2] = convertiUTMtoWGS84(puntoB.x, puntoB.y, this.casoAttivo);
+                            const [lon3, lat3] = convertiUTMtoWGS84(puntoC.x, puntoC.y, this.casoAttivo);
 
-                        const latlngs = [
-                            [lat1, lon1],
-                            [lat2, lon2],
-                            [lat3, lon3],
-                            [lat1, lon1]
-                        ];
-
-                        this.mapManager.addPolygon(latlngs, {
-                            color: getCSSVar('--color-danger'),
-                            weight: 2,
-                            fillOpacity: 0.1
+                            const latlngs = [
+                                [lat1, lon1],
+                                [lat2, lon2],
+                                [lat3, lon3],
+                                [lat1, lon1]
+                            ];
+                            this.mapManager.addPolygon(latlngs, {
+                                color: getCSSVar('--color-danger'),
+                                weight: getCSSVar('--line-draw-weight-lg'),
+                                opacity: 0.8,
+                                fillOpacity: 0.1
+                            });
                         });
-                    });
 
-                    const iconaHtmlDelaunay = `
-                        <div style="
-                            width: 20px;
-                            height: 20px;
-                            border: 2px solid red;
-                            background: rgba(255, 0, 0, 0.1);
-                            display: flex;
-                            align-items: center;
-                            justify-content: center;
-                            font-weight: 500;
-                            font-size: 8px;
-                            color: red;">DT</div>
-                    `;
-
-                    const contenutoInfoboxDelaunay = `
-                        <p class="punti-riepilogo">${riepilogoPuntiDelaunay}</p>
-                        <table class="nni-table">
-                            <tr>
-                                <td>Triangoli generati</td>
-                                <td>${triangolazione.statistiche.numeroTriangoli}</td>
-                            </tr>
-                        </table>
-                    `;
-                    this.aggiornaInfoboxBase('Triangolazione di Delaunay', contenutoInfoboxDelaunay, iconaHtmlDelaunay);
+                        const iconaHtmlDelaunay = `
+                            <div style="
+                                width: 20px;
+                                height: 20px;
+                                border: 2px solid red;
+                                background: rgba(255, 0, 0, 0.1);
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-weight: 500;
+                                font-size: 8px;
+                                color: red;">DT</div>
+                        `;
+                        const contenutoInfoboxDelaunay = `
+                            <p class="punti-riepilogo">${riepilogoPuntiDelaunay}</p>
+                            <table class="nni-table">
+                                <tr>
+                                    <td>Triangoli generati</td>
+                                    <td>${triangolazione.statistiche.numeroTriangoli}</td>
+                                </tr>
+                            </table>
+                        `;
+                        this.aggiornaInfoboxBase('Triangolazione di Delaunay', contenutoInfoboxDelaunay, iconaHtmlDelaunay);
+                    }
+                } catch (error) {
+                    console.error("Errore nel calcolo della triangolazione di Delaunay:", error);
                 }
             }
 
             if (mostraVoronoiDelaunay) {
                 const { puntiCalcolo: puntiVoronoiCalcolo, puntiExtra: puntiVoronoiExtra } = this.otteniPuntiExtra(puntiUTM);
                 const riepilogoPuntiVD = this.generaRiepilogoPunti(puntiUTM, puntiVoronoiExtra);
-            
-                const risultatoVD = algoritmiGeometrici.voronoiDelaunay(puntiVoronoiCalcolo);
-                const intersezioni = risultatoVD.intersezioni;
-            
-                // Disegna le intersezioni
-                /*
-                if (intersezioni.length > 0) {
-                    intersezioni.forEach(i => {
-                        const [lon, lat] = proj4('EPSG:32632', 'EPSG:4326', [i.x, i.y]);                       
-                        
-                        // Aggiungi un marker per ogni intersezione
-                        this.mapManager.addCircle(lat, lon, 200, {
+
+                try {
+                    const risultatoVD = algoritmiGeometrici.voronoiDelaunay(puntiVoronoiCalcolo);
+                    const intersezioni = risultatoVD.intersezioni;
+
+                    if (intersezioni && intersezioni.length > 0) {
+                        const baricentro = algoritmiGeometrici.baricentro(intersezioni);
+                        const [lonBaricentro, latBaricentro] = convertiUTMtoWGS84(baricentro.x, baricentro.y, this.casoAttivo);
+                        centers.push({ label: 'Baricentro Intersezioni Voronoi-Delaunay', x: baricentro.x, y: baricentro.y });
+
+                        const dimensioneInternaIconaVD = 20;
+                        const spessoreBordoIconaVD = 2;
+                        const dimensioneEffettivaIconaVD = dimensioneInternaIconaVD + (spessoreBordoIconaVD * 2);
+                        const iconBaricentro = creaIconaCerchio('VD', '--color-bordeaux', '--bg-accent', dimensioneInternaIconaVD);
+
+                        this.mapManager.addIcon(latBaricentro, lonBaricentro, {
+                            html: iconBaricentro,
+                            popup: `<div class="popup-title">Baricentro delle intersezioni</div>`,
+                            tooltip: `Baricentro delle intersezioni`,
+                            permanentTooltip: mostraEtichette,
+                            iconSize: [dimensioneEffettivaIconaVD, dimensioneEffettivaIconaVD],
+                            iconAnchor: [dimensioneEffettivaIconaVD / 2, dimensioneEffettivaIconaVD / 2],
+                            className: 'centro-geometrico-icon'
+                        });
+
+                        // trova il punto di intersezione più vicino al baricentro
+                        const raggioMinimo = algoritmiGeometrici.calcolaRaggioMinimo(intersezioni, baricentro);
+
+                        // disegna il cerchio di raggio minimo
+                        this.mapManager.addCircle(latBaricentro, lonBaricentro, raggioMinimo, {
                             color: getCSSVar('--color-bordeaux'),
                             fillColor: getCSSVar('--color-bordeaux'),
-                            fillOpacity: 0.8,
-                            weight: 2,
-                        });                            
-                    });
-                }
-                */
+                            fillOpacity: 0.1,
+                            weight: 2
+                        });
 
-                // Verifica se ci sono intersezioni prima di procedere
-                if (intersezioni && intersezioni.length > 0) {
-                    // trova il baricentro delle intersezioni
-                    const baricentro = algoritmiGeometrici.baricentro(intersezioni);
-                    const [lonBaricentro, latBaricentro] = proj4('EPSG:32632', 'EPSG:4326', [baricentro.x, baricentro.y]);
-
-                    const iconBaricentro = creaIconaCerchio('VD', '--color-bordeaux', '--bg-accent');
-                    
-                    this.mapManager.addIcon(latBaricentro, lonBaricentro, {
-                        html: iconBaricentro,
-                        popup: `<div class="popup-title">Baricentro delle intersezioni</div>`,
-                        tooltip: `Baricentro delle intersezioni`,
-                        permanentTooltip: mostraEtichette,
-                        iconAnchor: [10, 10]
-                    });
-                    
-                    // trova il punto di intersezione più vicino al baricentro
-                    const raggioMinimo = algoritmiGeometrici.calcolaRaggioMinimo(intersezioni, baricentro);
-
-                    // disegna il cerchio di raggio minimo
-                    this.mapManager.addCircle(latBaricentro, lonBaricentro, raggioMinimo, {
-                        color: getCSSVar('--color-bordeaux'),
-                        fillColor: getCSSVar('--color-bordeaux'),
-                        fillOpacity: 0.1,
-                        weight: 2
-                    });
-                    
-                    // Aggiungi l'infobox per VoronoiDelaunay
-                    const contenutoInfoboxVD = `
-                        <p class="coordinate">${latBaricentro.toFixed(4)}°N, ${lonBaricentro.toFixed(4)}°E</p>
-                        <p class="coordinate">UTM: ${Math.round(baricentro.x)}E, ${Math.round(baricentro.y)}N</p>
-                        <p class="punti-riepilogo">${riepilogoPuntiVD}</p>
-                        <table class="nni-table">
-                            <tr>
-                                <td>Intersezioni trovate</td>
-                                <td>${intersezioni.length}</td>
-                            </tr>
-                            <tr>
-                                <td>Raggio minimo</td>
-                                <td>${formattaDistanzaKm(raggioMinimo, 1)}</td>
-                            </tr>
-                        </table>
-                    `;
-                    this.aggiornaInfoboxBase('Intersezioni Voronoi-Delaunay', contenutoInfoboxVD, iconBaricentro);
-                } else {
-                    // Gestisci il caso in cui non ci siano intersezioni
-                    const iconAlert = creaIconaCerchio('VD', '--color-bordeaux', '--bg-accent');
-                    const contenutoInfoboxVD = `
-                        <p class="punti-riepilogo">${riepilogoPuntiVD}</p>
-                        <table class="nni-table">
-                            <tr>
-                                <td>Intersezioni trovate</td>
-                                <td>0</td>
-                            </tr>
-                            <tr>
-                                <td>Messaggio</td>
-                                <td>Punti insufficienti per generare intersezioni</td>
-                            </tr>
-                        </table>
-                    `;
-                    this.aggiornaInfoboxBase('Intersezioni Voronoi-Delaunay', contenutoInfoboxVD, iconAlert);
+                        const contenutoInfoboxVD = `
+                            <p class="coordinate">${latBaricentro.toFixed(4)}°N, ${lonBaricentro.toFixed(4)}°E</p>
+                            <p class="coordinate">UTM: ${Math.round(baricentro.x)}E, ${Math.round(baricentro.y)}N</p>
+                            <p class="punti-riepilogo">${riepilogoPuntiVD}</p>
+                            <table class="nni-table">
+                                <tr>
+                                    <td>Intersezioni trovate</td>
+                                    <td>${intersezioni.length}</td>
+                                </tr>
+                                <tr>
+                                    <td>Raggio minimo</td>
+                                    <td>${formattaDistanzaKm(raggioMinimo, 1)}</td>
+                                </tr>
+                            </table>
+                        `;
+                        this.aggiornaInfoboxBase('Intersezioni Voronoi-Delaunay', contenutoInfoboxVD, iconBaricentro);
+                    }
+                    else
+                    {
+                        const iconAlert = creaIconaCerchio('VD', '--color-bordeaux', '--bg-accent');
+                        const contenutoInfoboxVD = `
+                            <p class="punti-riepilogo">${riepilogoPuntiVD}</p>
+                            <table class="nni-table">
+                                <tr>
+                                    <td>Intersezioni trovate</td>
+                                    <td>0</td>
+                                </tr>
+                                <tr>
+                                    <td>Messaggio</td>
+                                    <td>Punti insufficienti per generare intersezioni</td>
+                                </tr>
+                            </table>
+                        `;
+                        this.aggiornaInfoboxBase('Intersezioni Voronoi-Delaunay', contenutoInfoboxVD, iconAlert);
+                    }
+                } catch (error) {
+                    console.error("Errore nel calcolo delle intersezioni Voronoi-Delaunay:", error);
                 }
             }
 
@@ -903,20 +850,23 @@ class GeoAnalysisApp {
                 const riepilogoPuntiCanter = this.generaRiepilogoPunti(puntiUTM, puntiCanterExtra);
 
                 const canter = algoritmiGeometrici.canter(puntiCanterCalcolo);
-
-                const [lonCanter, latCanter] = proj4('EPSG:32632', 'EPSG:4326', [canter.x, canter.y]);
+                const [lonCanter, latCanter] = convertiUTMtoWGS84(canter.x, canter.y, this.casoAttivo);
                 centers.push({ label: 'Centro Cerchio di Canter', x: canter.x, y: canter.y });
-                const iconHtml = creaIconaCerchio('C', '--color-accent', '--bg-accent');
+                
+                        const dimensioneInternaIconaCanter = 20;
+                        const spessoreBordoIconaCanter = 2;
+                        const dimensioneEffettivaIconaCanter = dimensioneInternaIconaCanter + (spessoreBordoIconaCanter * 2); 
+                        const iconHtml = creaIconaCerchio('C', '--color-accent', '--bg-accent', dimensioneInternaIconaCanter);
 
-                // Aggiungi l'icona del centro alla mappa
                 this.mapManager.addIcon(latCanter, lonCanter, {
                     html: iconHtml,
                     popup: `<div class="popup-title">Centro del cerchio di Canter</div><div class="coordinate">${latCanter.toFixed(4)}°N, ${lonCanter.toFixed(4)}°E</div><div class="coordinate">UTM: ${Math.round(canter.x)}E, ${Math.round(canter.y)}N</div>`,
                     tooltip: `Centro Cerchio di Canter`,
                     permanentTooltip: mostraEtichette,
-                    iconAnchor: [10, 10]
+                    iconSize: [dimensioneEffettivaIconaCanter, dimensioneEffettivaIconaCanter],
+                    iconAnchor: [dimensioneEffettivaIconaCanter / 2, dimensioneEffettivaIconaCanter / 2],
+                    className: 'centro-geometrico-icon'
                 });
-
                 this.mapManager.addCircle(latCanter, lonCanter, canter.raggio, {
                     color: getCSSVar('--color-accent'),
                     fillColor: getCSSVar('--color-accent'),
@@ -966,35 +916,44 @@ class GeoAnalysisApp {
                 ];
 
                 if (tuttiPunti.length > 0) {
-                    const centroCPR = algoritmiGeometrici.centroProbabileResidenza(tuttiPunti);
-                    const [lonCPR, latCPR] = proj4('EPSG:32632', 'EPSG:4326', [centroCPR.x, centroCPR.y]);
+                    try {
+                        const centroCPR = algoritmiGeometrici.centroProbabileResidenza(tuttiPunti);
 
-                    centers.push({ label: 'Centro Probabile Residenza', x: centroCPR.x, y: centroCPR.y });
+                        const [lonCPR, latCPR] = convertiUTMtoWGS84(centroCPR.x, centroCPR.y, this.casoAttivo);
+                        centers.push({ label: 'Centro Probabile Residenza', x: centroCPR.x, y: centroCPR.y });
+                        
+                        const dimensioneInternaIconaCPR = 20;
+                        const spessoreBordoIconaCPR = 2;
+                        const dimensioneEffettivaIconaCPR = dimensioneInternaIconaCPR + (spessoreBordoIconaCPR * 2);
+                        const iconHtml = creaIconaCerchio('CPR', '--color-neutral', '--bg-muted', dimensioneInternaIconaCPR, 8);
 
-                    const iconHtml = creaIconaCerchio('CPR', '--color-neutral', '--bg-muted', 20, 8)
-
-                    this.mapManager.addIcon(latCPR, lonCPR, {
-                        html: iconHtml,
-                        popup: `<strong>Centro Probabile Residenza</strong><div class="coordinate">${latCPR.toFixed(4)}°N, ${lonCPR.toFixed(4)}°E</div><div class="coordinate">UTM: ${Math.round(centroCPR.x)}E, ${Math.round(centroCPR.y)}N</div><em>${tuttiPunti.length} Eventi considerati</em>`,
-                        tooltip: `Centro Probabile Residenza`,
-                        permanentTooltip: mostraEtichette,
-                        iconAnchor: [10, 10]
-                    });
-
-                    // Calcola il cerchio di deviazione standard
-                    if (tuttiPunti.length > 1) {
-                        const deviazione = algoritmiGeometrici.calcolaDeviazioneStandardDistanze(tuttiPunti, centroCPR);
-                        const raggio = Math.min(deviazione, window.CPR_RADIUS_LIMIT);
-
-                        this.mapManager.addCircle(latCPR, lonCPR, raggio, {
-                            color: getCSSVar('--color-neutral'),
-                            fillColor: getCSSVar('--color-neutral'),
-                            fillOpacity: 0.1,
-                            weight: 2,
-                            popup: `<strong>Circonferenza CPR</strong><div class="coordinate">Raggio: ${formattaDistanzaKm(raggio, 1)} km</div>`
+                        this.mapManager.addIcon(latCPR, lonCPR, {
+                            html: iconHtml,
+                            popup: `<strong>Centro Probabile Residenza</strong><div class="coordinate">${latCPR.toFixed(4)}°N, ${lonCPR.toFixed(4)}°E</div><div class="coordinate">UTM: ${Math.round(centroCPR.x)}E, ${Math.round(centroCPR.y)}N</div><em>${tuttiPunti.length} Eventi considerati</em>`,
+                            tooltip: `Centro Probabile Residenza`,
+                            permanentTooltip: mostraEtichette,
+                            iconSize: [dimensioneEffettivaIconaCPR, dimensioneEffettivaIconaCPR],
+                            iconAnchor: [dimensioneEffettivaIconaCPR / 2, dimensioneEffettivaIconaCPR / 2],
+                            className: 'centro-geometrico-icon'
                         });
+
+                        // Calcola il cerchio di deviazione standard
+                        if (tuttiPunti.length > 1) {
+                            const deviazione = algoritmiGeometrici.calcolaDeviazioneStandardDistanze(tuttiPunti, centroCPR);
+                            const raggio = Math.min(deviazione, window.CPR_RADIUS_LIMIT);
+
+                            this.mapManager.addCircle(latCPR, lonCPR, raggio, {
+                                color: getCSSVar('--color-neutral'),
+                                fillColor: getCSSVar('--color-neutral'),
+                                fillOpacity: 0.1,
+                                weight: 2,
+                                popup: `<strong>Circonferenza CPR</strong><div class="coordinate">Raggio: ${formattaDistanzaKm(raggio, 1)} km</div>`
+                            });
+                        }
+                        this.aggiornaInfoboxBase('Centro Probabile Residenza', this.creaContenutoInfobox('Centro Probabile Residenza', iconHtml, getCSSVar('--color-neutral'), centroCPR, tuttiPunti, `${tuttiPunti.length} Eventi considerati`), iconHtml);
+                    } catch (error) {
+                        console.error("Errore nel calcolo del CPR:", error);
                     }
-                    this.aggiornaInfoboxBase('Centro Probabile Residenza', this.creaContenutoInfobox('Centro Probabile Residenza', iconHtml, getCSSVar('--color-neutral'), centroCPR, tuttiPunti, `${tuttiPunti.length} Eventi considerati`), iconHtml);
                 }
             }
 
@@ -1003,52 +962,56 @@ class GeoAnalysisApp {
                 const { puntiCalcolo: puntiCHPCalcolo, puntiExtra: puntiCHPExtra } = this.otteniPuntiExtra(puntiUTM);
                 const riepilogoPuntiCHP = this.generaRiepilogoPunti(puntiUTM, puntiCHPExtra);
 
-                const { punti: hull, area, perimetro } = algoritmiGeometrici.convexHull(puntiCHPCalcolo);
-                const latlngs = hull.map(({ x, y }) => {
-                    const [lon, lat] = proj4('EPSG:32632', 'EPSG:4326', [x, y]);
-                    return [lat, lon];
-                });
+                try {
+                    const { punti: hull, area, perimetro } = algoritmiGeometrici.convexHull(puntiCHPCalcolo);
 
-                this.mapManager.addPolygon(latlngs, {
-                    color: 'black',
-                    weight: 2,
-                    fillOpacity: 0.1,
-                    opacity: 0.8,
-                    popup: `Convex Hull (${hull.length} vertici)<br><em>${riepilogoPuntiCHP}</em>`
-                });
+                    const latlngs = hull.map(({ x, y }) => {
+                        const [lon, lat] = convertiUTMtoWGS84(x, y, this.casoAttivo);
+                        return [lat, lon];
+                    });
 
-                const iconaHtmlCHP = `
-                    <div style="
-                        width: 20px;
-                        height: 20px;
-                        border: 2px solid black;
-                        background: rgba(0, 0, 0, 0.1);
-                        display: flex;
-                        align-items: center;
-                        justify-content: center;
-                        font-weight: 500;
-                        font-size: 8px;
-                        color: black;">CHP</div>
-                `;
+                    this.mapManager.addPolygon(latlngs, {
+                        color: 'black',
+                        weight: getCSSVar('--line-draw-weight-lg'),
+                        fillOpacity: 0.1,
+                        opacity: 0.8,
+                        popup: `Convex Hull (${hull.length} vertici)<br><em>${riepilogoPuntiCHP}</em>`
+                    });
 
-                const contenutoInfoboxCHP = `
-                    <p class="punti-riepilogo">${riepilogoPuntiCHP}</p>
-                    <table class="nni-table">
-                        <tr>
-                            <td>Vertici poligono</td>
-                            <td>${hull.length}</td>
-                        </tr>
-                        <tr>
-                            <td>Area</td>
-                            <td>${(area / 1000000).toFixed(2)} km²</td>
-                        </tr>
-                        <tr>
-                            <td>Perimetro</td>
-                            <td>${formattaDistanzaKm(perimetro, 2)}</td>
-                        </tr>
-                    </table>
-                `;
-                this.aggiornaInfoboxBase('Convex Hull', contenutoInfoboxCHP, iconaHtmlCHP);
+                    const iconaHtmlCHP = `
+                        <div style="
+                            width: 20px;
+                            height: 20px;
+                            border: 2px solid black;
+                            background: rgba(0, 0, 0, 0.1);
+                            display: flex;
+                            align-items: center;
+                            justify-content: center;
+                            font-weight: 500;
+                            font-size: 8px;
+                            color: black;">CHP</div>
+                    `;
+                    const contenutoInfoboxCHP = `
+                        <p class="punti-riepilogo">${riepilogoPuntiCHP}</p>
+                        <table class="nni-table">
+                            <tr>
+                                <td>Vertici poligono</td>
+                                <td>${hull.length}</td>
+                            </tr>
+                            <tr>
+                                <td>Area</td>
+                                <td>${(area / 1000000).toFixed(2)} km²</td>
+                            </tr>
+                            <tr>
+                                <td>Perimetro</td>
+                                <td>${formattaDistanzaKm(perimetro, 2)}</td>
+                            </tr>
+                        </table>
+                    `;
+                    this.aggiornaInfoboxBase('Convex Hull', contenutoInfoboxCHP, iconaHtmlCHP);
+                } catch (error) {
+                    console.error("Errore nel calcolo del Convex Hull:", error);
+                }
             }
 
             // Mean Interpoint Distance (MID)
@@ -1056,43 +1019,45 @@ class GeoAnalysisApp {
                 const { puntiCalcolo: puntiMIDCalcolo, puntiExtra: puntiMIDExtra } = this.otteniPuntiExtra(puntiUTM);
                 const riepilogoPuntiMID = this.generaRiepilogoPunti(puntiUTM, puntiMIDExtra);
 
-                const midValue = algoritmiGeometrici.meanInterpointDistance(puntiMIDCalcolo);
-                // Il cerchio MID è centrato sul baricentro
-                const baricentro = algoritmiGeometrici.baricentro(puntiMIDCalcolo);
-                const [lon, lat] = proj4('EPSG:32632', 'EPSG:4326', [baricentro.x, baricentro.y]);
+                try {
+                    const midValue = algoritmiGeometrici.meanInterpointDistance(puntiMIDCalcolo);
 
-                this.mapManager.addCircle(lat, lon, midValue, {
-                    color: getCSSVar('--color-primary-dark'),
-                    fillColor: getCSSVar('--color-primary'),
-                    fillOpacity: 0.2,
-                    weight: 2,
-                    popup: `
-                        <strong>MID (Distanza Media)</strong>
-                        <div class="coordinate">Raggio: ${formattaDistanzaKm(midValue, 1)} km</div>
-                        <em>${riepilogoPuntiMID}</em>
-                    `
-                });
+                    const baricentro = algoritmiGeometrici.baricentro(puntiMIDCalcolo);
+                    const [lon, lat] = convertiUTMtoWGS84(baricentro.x, baricentro.y, this.casoAttivo);
 
-                const iconHtml = creaIconaCerchio('MID', '--color-primary-dark', '--bg-primary', 20, 10);
+                    this.mapManager.addCircle(lat, lon, midValue, {
+                        color: getCSSVar('--color-primary-dark'),
+                        fillColor: getCSSVar('--color-primary'),
+                        fillOpacity: 0.2,
+                        weight: 2,
+                        popup: `
+                            <strong>MID (Distanza Media)</strong>
+                            <div class="coordinate">Raggio: ${formattaDistanzaKm(midValue, 1)} km</div>
+                            <em>${riepilogoPuntiMID}</em>
+                        `
+                    });
 
-                // Usa il formato personalizzato dell'infobox
-                const infoboxMID = `
-                    <p class="punti-riepilogo">${riepilogoPuntiMID}</p>
-                    <table class="nni-table">
-                        <tr>
-                            <td>Valore MID</td>
-                            <td>${formattaDistanzaKm(midValue, 1)}</td>
-                        </tr>
-                    </table>
-                `;
-                this.aggiornaInfoboxBase('Mean Interpoint Distance', infoboxMID, iconHtml);
+                    const iconHtml = creaIconaCerchio('MID', '--color-primary-dark', '--bg-primary', 20, 10);
+
+                    const infoboxMID = `
+                        <p class="punti-riepilogo">${riepilogoPuntiMID}</p>
+                        <table class="nni-table">
+                            <tr>
+                                <td>Valore MID</td>
+                                <td>${formattaDistanzaKm(midValue, 1)}</td>
+                            </tr>
+                        </table>
+                    `;
+                    this.aggiornaInfoboxBase('Mean Interpoint Distance', infoboxMID, iconHtml);
+                } catch (error) {
+                    console.error("Errore nel calcolo del MID:", error);
+                }
             }
 
             // Nearest Neighbor Index (NNI)
             if (mostraNNI && delittiAttivi.length >= 2) {
                 const { puntiCalcolo: puntiNNICalcolo, puntiExtra: puntiNNIExtra } = this.otteniPuntiExtra(puntiUTM);
                 const riepilogoPuntiNNI = this.generaRiepilogoPunti(puntiUTM, puntiNNIExtra);
-
                 const risultatoNNI = algoritmiGeometrici.nearestNeighborIndex(puntiNNICalcolo);
 
                 // Funzione per determinare il colore in base al valore NNI
@@ -1113,7 +1078,6 @@ class GeoAnalysisApp {
                     }
                 };
 
-                // Ottieni il colore in base al valore NNI
                 const nniColor = getNNIColor(risultatoNNI.indice);
                 const nniColorLight = nniColor.replace('0.8', '0.2');
 
@@ -1130,14 +1094,13 @@ class GeoAnalysisApp {
                             vicino = p2;
                         }
                     });
-
                     // Disegna la linea se è stato trovato un vicino
                     if (vicino) {
-                        const [lon1, lat1] = proj4('EPSG:32632', 'EPSG:4326', [p1.x, p1.y]);
-                        const [lon2, lat2] = proj4('EPSG:32632', 'EPSG:4326', [vicino.x, vicino.y]);
+                        const [lon1, lat1] = convertiUTMtoWGS84(p1.x, p1.y, this.casoAttivo);
+                        const [lon2, lat2] = convertiUTMtoWGS84(vicino.x, vicino.y, this.casoAttivo);
 
                         this.mapManager.addLine([lat1, lon1], [lat2, lon2], {
-                            color: 'black',  // Linee sempre nere come richiesto
+                            color: 'black',
                             weight: 2,
                             opacity: 0.7,
                             popup: `Distanza vicino più prossimo: ${formattaDistanzaKm(distanzaMinima, 1)} km`
@@ -1209,54 +1172,179 @@ class GeoAnalysisApp {
                 `;
                 this.aggiornaInfoboxBase('Nearest Neighbour Index', infoboxNNI, iconHtml);
             }
+
+            // Regressione Lineare
+            if (mostraRegressione && delittiAttivi.length >= 2) {
+                const { puntiCalcolo: puntiRegCalcolo, puntiExtra: puntiRegExtra } = this.otteniPuntiExtra(puntiUTM);
+                const riepilogoPuntiReg = this.generaRiepilogoPunti(puntiUTM, puntiRegExtra);
+
+                const risultatoReg = algoritmiGeometrici.regressioneLineare(puntiRegCalcolo);
+
+                if (risultatoReg && !isNaN(risultatoReg.m)) { // Controlla se il risultato è valido
+                    const { minX, minY, maxX, maxY } = algoritmiGeometrici.trovaEstremi(puntiRegCalcolo);
+
+                    // Fattore di estensione: 15% in più su entrambi i lati
+                    const estensione = 0.2;
+                    const lunghezzaX = maxX - minX;
+
+                    const x1 = minX - (lunghezzaX * estensione);
+                    const y1 = risultatoReg.m * x1 + risultatoReg.q;
+
+                    const x2 = maxX + (lunghezzaX * estensione);
+                    const y2 = risultatoReg.m * x2 + risultatoReg.q;
+
+                    // Punti della retta base (senza estensione)
+                    const xBase1 = minX;
+                    const yBase1 = risultatoReg.m * xBase1 + risultatoReg.q;
+
+                    const xBase2 = maxX;
+                    const yBase2 = risultatoReg.m * xBase2 + risultatoReg.q;
+
+                    const [lon1, lat1] = convertiUTMtoWGS84(x1, y1, this.casoAttivo);
+                    const [lon2, lat2] = convertiUTMtoWGS84(x2, y2, this.casoAttivo);
+                    const [lonBase1, latBase1] = convertiUTMtoWGS84(xBase1, yBase1, this.casoAttivo);
+                    const [lonBase2, latBase2] = convertiUTMtoWGS84(xBase2, yBase2, this.casoAttivo);
+
+                    // Aggiungi la parte principale della retta (senza tratteggio)
+                    const configLineaPrincipale = {
+                        color: MapElementsRenderer.getCSSVar('--color-danger'),
+                        weight: 3,
+                        opacity: 0.9,
+                        className: 'retta-regressione'
+                    };
+                    this.mapManager.addLine([latBase1, lonBase1], [latBase2, lonBase2], configLineaPrincipale);
+                    // Aggiungi la parte estesa della retta (tratteggiata)
+                    if (x1 < xBase1) {
+                        const configLineaEstesa = {
+                            color: MapElementsRenderer.getCSSVar('--color-danger'),
+                            weight: 3,
+                            opacity: 0.7,
+                            dashArray: '5, 5',
+                            className: 'retta-regressione-estesa'
+                        };
+                        this.mapManager.addLine([lat1, lon1], [latBase1, lonBase1], configLineaEstesa);
+                    }
+
+                    // Seconda parte (dal punto maxX al punto maxX esteso)
+                    if (x2 > xBase2) {
+                        const configLineaEstesa = {
+                            color: MapElementsRenderer.getCSSVar('--color-danger'),
+                            weight: 3,
+                            opacity: 0.7,
+                            dashArray: '5, 5',
+                            className: 'retta-regressione-estesa'
+                        };
+                        this.mapManager.addLine([latBase2, lonBase2], [lat2, lon2], configLineaEstesa);
+                    }
+                    // Calcola il punto medio della retta per posizionare l'icona
+                    const xMedio = (x1 + x2) / 2;
+                    const yMedio = risultatoReg.m * xMedio + risultatoReg.q;
+                    const [lonMedio, latMedio] = convertiUTMtoWGS84(xMedio, yMedio, this.casoAttivo);
+                    // Aggiunge un marker con R²
+                    const iconaHTML = MapElementsRenderer.creaIconaRegressione();
+                    const dimensioneInternaIconaReg = 24;
+                    const spessoreBordoIconaReg = 2;
+                    const dimensioneEffettivaIconaReg = dimensioneInternaIconaReg + (spessoreBordoIconaReg * 2);
+
+                    const popupText = `
+                        <div class="popup-container">
+                            <strong>Regressione Lineare</strong><br>
+                            R²: ${risultatoReg.r2.toFixed(3)}<br>
+                            Equazione: y = ${risultatoReg.m.toFixed(2)}x ${risultatoReg.q >= 0 ? '+' : '-'} ${Math.abs(risultatoReg.q).toFixed(2)}
+                        </div>
+                    `;
+                    this.mapManager.addIcon(latMedio, lonMedio, {
+                        html: iconaHTML,
+                        popup: popupText,
+                        iconSize: [dimensioneEffettivaIconaReg, dimensioneEffettivaIconaReg],
+                        iconAnchor: [dimensioneEffettivaIconaReg / 2, dimensioneEffettivaIconaReg / 2],
+                        className: 'centro-geometrico-icon'
+                    });
+                }
+            }
+
+            // Percorso Cronologico Delitti
+            if (mostraPercorsoCronologico && delittiAttivi.length >= 2) {
+                const { puntiCalcolo: puntiPercorsoCalcolo, puntiExtra: puntiPercorsoExtra } = this.otteniPuntiExtra(puntiUTM);
+                const riepilogoPuntiPercorso = this.generaRiepilogoPunti(puntiUTM, puntiPercorsoExtra);
+
+                try {
+                    // Ordina i punti in base all'anno
+                    const delittiOrdinati = [...delittiAttivi]
+                        .filter(d => puntiPercorsoCalcolo.some(pc => pc.x === d.x && pc.y === d.y))
+                        .sort((a, b) => a.year - b.year);
+
+                    if (delittiOrdinati.length >= 2) {
+                        const latLngsPercorso = delittiOrdinati.map(d => {
+                            const [lon, lat] = convertiUTMtoWGS84(d.x, d.y, this.casoAttivo);
+                            return [lat, lon];
+                        });
+
+                        const distanze = [];
+                        let lunghezzaTotale = 0;
+
+                        for (let i = 0; i < delittiOrdinati.length - 1; i++) {
+                            const distanza = algoritmiGeometrici.distanzaTraPunti(delittiOrdinati[i], delittiOrdinati[i + 1]);
+                            distanze.push(distanza);
+                            lunghezzaTotale += distanza;
+                        }
+
+                        const distanzaMedia = lunghezzaTotale / distanze.length;
+                        const distanzaMinima = Math.min(...distanze);
+                        const distanzaMassima = Math.max(...distanze);
+
+                        for (let i = 0; i < latLngsPercorso.length - 1; i++) {
+                            this.mapManager.addArrow(
+                                latLngsPercorso[i],
+                                latLngsPercorso[i + 1],
+                                {
+                                    color: 'black',
+                                    weight: getCSSVar('--line-draw-weight-lg'),
+                                    opacity: 0.8,
+                                    label: (i + 1).toString(),
+                                    labelColor: '#ffffff',
+                                    labelBgColor: '#000000',
+                                    popup: `
+                                        <strong>Segmento ${i + 1} del Percorso Cronologico</strong>
+                                        <div>Distanza: ${formattaDistanzaKm(distanze[i], 1)}</div>
+                                        <div>Da: ${delittiOrdinati[i].label}</div>
+                                        <div>A: ${delittiOrdinati[i + 1].label}</div>
+                                    `
+                                }
+                            );
+                        }
+                        const iconaHtmlPercorso = `
+                            <div style="
+                                width: 20px;
+                                height: 20px;
+                                display: flex;
+                                align-items: center;
+                                justify-content: center;
+                                font-weight: 500;
+                                font-size: 18px;
+                                color: ${getCSSVar('--color-black')};">
+                                →
+                                </div>`;
+
+                        const contenutoInfoboxPercorso = `
+                            <p class="punti-riepilogo">${riepilogoPuntiPercorso}</p>
+                            <table class="nni-table">
+                                <tr><td>Tappe</td><td>${delittiOrdinati.length}</td></tr>
+                                <tr><td>Lunghezza totale</td><td>${formattaDistanzaKm(lunghezzaTotale, 1)}</td></tr>
+                                <tr><td>Distanza media</td><td>${formattaDistanzaKm(distanzaMedia, 1)}</td></tr>
+                                <tr><td>Distanza minima</td><td>${formattaDistanzaKm(distanzaMinima, 1)}</td></tr>
+                                <tr><td>Distanza massima</td><td>${formattaDistanzaKm(distanzaMassima, 1)}</td></tr>
+                            </table>
+                        `;
+                        this.aggiornaInfoboxBase('Percorso Cronologico Delitti', contenutoInfoboxPercorso, iconaHtmlPercorso);
+                    }
+                } catch (error) {
+                    console.error("Errore nel calcolo del percorso cronologico:", error);
+                }
+            }
         }
-
-        delittiAttivi.forEach(punto => {
-            const isCollaterale = this.datasets.omicidiCollaterali.some(d => d.label === punto.label);
-            const iconClass = isCollaterale ? 'delitto-collaterale-icon' : 'delitto-icon';
-
-            this.mapManager.addIcon(punto.lat, punto.lon, {
-                html: `<span class="material-icons map-marker-icon ${iconClass}">warning</span>`,
-                popup: generaPopupHtml(punto, centers),
-                tooltip: punto.label,
-                permanentTooltip: mostraEtichette,
-                className: mostraEtichette ? 'permanent-tooltip' : '',
-                iconAnchor: [12, 12]
-            });
-        });
-
-        puntiInteresse.forEach(punto => {
-            this.mapManager.addIcon(punto.lat, punto.lon, {
-                html: `<span class="material-icons map-marker-icon interesse-icon">location_on</span>`,
-                popup: generaPopupHtml(punto, centers),
-                tooltip: punto.label,
-                permanentTooltip: mostraEtichette,
-                className: mostraEtichette ? 'permanent-tooltip' : '',
-                iconAnchor: [12, 24]
-            });
-        });
-
-        abitazioniSospettati.forEach(punto => {
-            this.mapManager.addIcon(punto.lat, punto.lon, {
-                html: `<span class="material-icons map-marker-icon sospettato-icon">home</span>`,
-                popup: generaPopupHtml(punto, centers),
-                tooltip: punto.label,
-                permanentTooltip: mostraEtichette,
-                className: mostraEtichette ? 'permanent-tooltip' : '',
-                iconAnchor: [12, 12]
-            });
-        });
-
-        abitazioniVittime.forEach(punto => {
-            this.mapManager.addIcon(punto.lat, punto.lon, {
-                html: `<span class="material-icons map-marker-icon vittima-icon">home</span>`,
-                popup: generaPopupHtml(punto, centers),
-                tooltip: punto.label,
-                permanentTooltip: mostraEtichette,
-                className: mostraEtichette ? 'permanent-tooltip' : '',
-                iconAnchor: [12, 12]
-            });
-        });
+        this.visualizzaPunti(centers, mostraEtichette);
+        this.visualizzaCerchi(centers, puntiUTM);
     }
 
     visualizzaCentroGeometrico(puntiUTM, tipoAnalisi, iconaChar, coloreVar, coloreSfondoVar, titolo, centri, mostraEtichette) {
@@ -1278,27 +1366,23 @@ class GeoAnalysisApp {
                 puntoCentro = algoritmiGeometrici.fermat(puntiCalcolo);
                 nomeAlgoritmo = 'Centro di Minima Distanza';
                 break;
-            case 'voronoiDelaunay':
-                puntoCentro = algoritmiGeometrici.voronoiDelaunay(puntiCalcolo);
-                nomeAlgoritmo = 'Intersezioni Voronoi-Delaunay';
-                break;
             default:
                 console.error(`Tipo di analisi non supportato: ${tipoAnalisi}`);
                 return;
         }
-
         if (!puntoCentro) {
             console.warn(`Impossibile calcolare ${nomeAlgoritmo}. Numero di punti: ${puntiCalcolo.length}`);
             return;
         }
-
-        const [lon, lat] = proj4('EPSG:32632', 'EPSG:4326', [puntoCentro.x, puntoCentro.y]);
+        const [lon, lat] = convertiUTMtoWGS84(puntoCentro.x, puntoCentro.y, this.casoAttivo);
         centri.push({ label: titolo, x: puntoCentro.x, y: puntoCentro.y });
 
-        const htmlIcona = creaIconaCerchio(iconaChar, coloreVar, coloreSfondoVar);
+        const dimensioneInternaIcona = 20;
+        const spessoreBordoIcona = 2;
+        const dimensioneEffettivaIcona = dimensioneInternaIcona + (spessoreBordoIcona * 2);
 
+        const htmlIcona = creaIconaCerchio(iconaChar, coloreVar, coloreSfondoVar, dimensioneInternaIcona);
         const riepilogoPunti = this.generaRiepilogoPunti(puntiUTM, puntiExtra);
-
         const tooltipText = `${titolo}`;
         const popupContent = `<div class="popup-title">${titolo}</div><div class="coordinate">${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E</div><div class="coordinate">UTM: ${Math.round(puntoCentro.x)}E, ${Math.round(puntoCentro.y)}N</div>`;
 
@@ -1307,7 +1391,9 @@ class GeoAnalysisApp {
             popup: popupContent,
             tooltip: tooltipText,
             permanentTooltip: mostraEtichette,
-            iconAnchor: [10, 10]
+            iconSize: [dimensioneEffettivaIcona, dimensioneEffettivaIcona],
+            iconAnchor: [dimensioneEffettivaIcona / 2, dimensioneEffettivaIcona / 2],
+            className: 'centro-geometrico-icon'
         });
         const contenutoInfobox = this.creaContenutoInfobox(titolo, htmlIcona, getCSSVar(coloreVar), puntoCentro, puntiCalcolo, riepilogoPunti);
         this.aggiornaInfoboxBase(titolo, contenutoInfobox, htmlIcona);
@@ -1330,7 +1416,6 @@ class GeoAnalysisApp {
                 this.aggiornaVisualizzazione();
             });
         });
-
         document.querySelectorAll('.deselect-all').forEach(btn => {
             btn.addEventListener('click', () => {
                 const targetId = btn.dataset.target;
@@ -1378,6 +1463,193 @@ class GeoAnalysisApp {
             this.aggiornaVisualizzazione();
         });
     }
+
+    getCasoAttivoFromURL() {
+        const urlParams = new URLSearchParams(window.location.search);
+        return urlParams.get('caso') || 'mdf';
+    }
+    configuraSwitchCaso() {
+        const btnMdf = document.getElementById('select-case-mdf');
+        const btnZodiac = document.getElementById('select-case-zodiac');
+
+        if (this.casoAttivo === 'mdf') {
+            btnMdf.classList.add('active');
+            btnZodiac.classList.remove('active');
+        } else {
+            btnMdf.classList.remove('active');
+            btnZodiac.classList.add('active');
+        }
+        // Aggiungi i listener per il cambio di caso
+        btnMdf.addEventListener('click', () => {
+            if (this.casoAttivo !== 'mdf') {
+                window.location.href = window.location.pathname + '?caso=mdf';
+            }
+        });
+        btnZodiac.addEventListener('click', () => {
+            if (this.casoAttivo !== 'zodiac') {
+                window.location.href = window.location.pathname + '?caso=zodiac';
+            }
+        });
+    }
+
+    caricaDataset() {
+        if (this.casoAttivo === 'zodiac' && typeof zodiacData !== 'undefined') {
+            this.datasets = {
+                delitti: window.convertiInUTM(zodiacData.delitti),
+                puntiInteresse: window.convertiInUTM(zodiacData.puntiInteresse),
+                abitazioniSospettati: window.convertiInUTM(zodiacData.abitazioniSospettati),
+                abitazioniVittime: window.convertiInUTM(zodiacData.abitazioniVittime),
+                omicidiCollaterali: window.convertiInUTM(zodiacData.omicidiCollaterali)
+            };
+        } else {
+            this.datasets = {
+                delitti: convertiInUTM(rawData.delitti),
+                puntiInteresse: convertiInUTM(rawData.puntiInteresse),
+                abitazioniSospettati: convertiInUTM(rawData.abitazioniSospettati),
+                abitazioniVittime: convertiInUTM(rawData.abitazioniVittime),
+                omicidiCollaterali: convertiInUTM(rawData.omicidiCollaterali)
+            };
+        }
+    }
+    // Centra la mappa sulla posizione appropriata in base al caso
+    centraMappa() {
+        if (this.casoAttivo === 'zodiac') {
+            // Coordinate per San Francisco
+            this.mapManager.map.setView([37.7749, -122.4194], 10);
+        } else {
+            // Coordinate per Firenze
+            this.mapManager.map.setView([43.7696, 11.2558], 10);
+        }
+    }
+    visualizzaPunti(centers, mostraEtichette = false) {
+        const delittiAttivi = this.getDelittiAttivi();
+        const abitazioniSospettati = this.getAbitazioniSospettatiAttivi();
+        const abitazioniVittime = this.getAbitazioniVittimeAttivi();
+        const puntiInteresse = this.getPuntiInteresseAttivi();
+
+        // Funzione locale per generare i popup
+        const generaPopupHtml = (punto, centers) => {
+            return MapElementsRenderer.generaPopupHtml(punto, centers, this.casoAttivo);
+        };
+
+        delittiAttivi.forEach(punto => {
+            const isCollaterale = this.datasets.omicidiCollaterali.some(d => d.label === punto.label);
+
+            this.mapManager.addIcon(punto.lat, punto.lon, {
+                html: MapElementsRenderer.creaMarkerDelitto(isCollaterale),
+                popup: generaPopupHtml(punto, centers),
+                tooltip: punto.label,
+                permanentTooltip: mostraEtichette,
+                className: mostraEtichette ? 'permanent-tooltip' : '',
+                iconAnchor: [12, 12]
+            });
+        });
+        puntiInteresse.forEach(punto => {
+            this.mapManager.addIcon(punto.lat, punto.lon, {
+                html: MapElementsRenderer.creaMarkerPuntoInteresse(),
+                popup: generaPopupHtml(punto, centers),
+                tooltip: punto.label,
+                permanentTooltip: mostraEtichette,
+                className: mostraEtichette ? 'permanent-tooltip' : '',
+                iconAnchor: [12, 24]
+            });
+        });
+        abitazioniSospettati.forEach(punto => {
+            this.mapManager.addIcon(punto.lat, punto.lon, {
+                html: MapElementsRenderer.creaMarkerAbitazioneSospettato(),
+                popup: generaPopupHtml(punto, centers),
+                tooltip: punto.label,
+                permanentTooltip: mostraEtichette,
+                className: mostraEtichette ? 'permanent-tooltip' : '',
+                iconAnchor: [12, 12]
+            });
+        });
+        abitazioniVittime.forEach(punto => {
+            this.mapManager.addIcon(punto.lat, punto.lon, {
+                html: MapElementsRenderer.creaMarkerAbitazioneVittima(),
+                popup: generaPopupHtml(punto, centers),
+                tooltip: punto.label,
+                permanentTooltip: mostraEtichette,
+                className: mostraEtichette ? 'permanent-tooltip' : '',
+                iconAnchor: [12, 12]
+            });
+        });
+    }
+
+    visualizzaCerchi(centers, puntiUTM) {
+        const delittiAttivi = this.getDelittiAttivi();
+        const mostraCerchiStandardCenter = this.configurazione.mostraCerchiStandardCenter;
+
+        if (!puntiUTM || puntiUTM.length === 0) {
+            puntiUTM = [];
+        }
+
+        Object.values(centers).forEach(center => {
+            if (!center.visible || !center.punto) return;
+
+            let tipoCentro;
+            switch (center.tipo) {
+                case 'baricentro': tipoCentro = 'baricentro'; break;
+                case 'mediana': tipoCentro = 'mediana'; break;
+                case 'fermat': tipoCentro = 'fermat'; break;
+                case 'canter': tipoCentro = 'canter'; break;
+                default: tipoCentro = 'default';
+            }
+
+            // Usa la funzione per ottenere la configurazione del cerchio
+            const opacitaCerchio = this.configurazione.opacitaCerchi || 0.15;
+            const configCerchio = MapElementsRenderer.getConfigCerchio(tipoCentro, opacitaCerchio);
+
+            if (center.tipo === 'canter' && center.cerchio && center.punto && this.configurazione.mostraCerchioCanter) {
+                const [lat, lon] = convertiUTMtoWGS84(center.punto.x, center.punto.y, this.casoAttivo);
+                const cerchioConfig = {
+                    ...configCerchio,
+                    popup: `<strong>Cerchio di Canter</strong><br>
+                    Raggio: ${MapElementsRenderer.formattaDistanzaKm(center.cerchio.raggio, 1)}<br>
+                    Area: ${(Math.PI * Math.pow(center.cerchio.raggio / 1000, 2)).toFixed(2)} km²`
+                };
+                this.mapManager.addCircle(lat, lon, center.cerchio.raggio, cerchioConfig);
+            }
+
+            if (mostraCerchiStandardCenter && center.punto && puntiUTM.length >= 2) {
+                const [lat, lon] = convertiUTMtoWGS84(center.punto.x, center.punto.y, this.casoAttivo);
+
+                const distanze = [];
+
+                puntiUTM.forEach(punto => {
+                    const distanza = Math.hypot(punto.x - center.punto.x, punto.y - center.punto.y);
+                    distanze.push(distanza);
+                });
+
+                distanze.sort((a, b) => a - b);
+                const distanzaMedia = distanze.reduce((sum, dist) => sum + dist, 0) / distanze.length;
+                const distanzaMinima = distanze[0];
+                const distanzaMassima = distanze[distanze.length - 1];
+
+                const cerchioMediaConfig = {
+                    ...configCerchio,
+                    fillOpacity: opacitaCerchio * 0.8,
+                    dashArray: '5, 5',
+                    popup: `<strong>Distanza media</strong><br>${MapElementsRenderer.formattaDistanzaKm(distanzaMedia, 1)}`
+                };
+                const cerchioMinimoConfig = {
+                    ...configCerchio,
+                    fillOpacity: opacitaCerchio * 0.6,
+                    dashArray: '5, 10',
+                    popup: `<strong>Distanza minima</strong><br>${MapElementsRenderer.formattaDistanzaKm(distanzaMinima, 1)}`
+                };
+                const cerchioMassimoConfig = {
+                    ...configCerchio,
+                    fillOpacity: opacitaCerchio * 0.4,
+                    dashArray: '10, 5',
+                    popup: `<strong>Distanza massima</strong><br>${MapElementsRenderer.formattaDistanzaKm(distanzaMassima, 1)}`
+                };
+                this.mapManager.addCircle(lat, lon, distanzaMedia, cerchioMediaConfig);
+                this.mapManager.addCircle(lat, lon, distanzaMinima, cerchioMinimoConfig);
+                this.mapManager.addCircle(lat, lon, distanzaMassima, cerchioMassimoConfig);
+            }
+        });
+    }
 }
 
 function aggiungiListenerModifica(selettore, callback) {
@@ -1385,30 +1657,41 @@ function aggiungiListenerModifica(selettore, callback) {
 }
 
 function getCSSVar(name) {
-    return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+    return MapElementsRenderer.getCSSVar(name);
 }
 
-function creaCheckbox(item, checked = true, uniqueSuffix) { 
-    const safeLabel = escapeHtml(item.label);
-    // Genera un ID univoco per l'input checkbox, cruciale se si usasse <label for=...>
-    // Anche se non usiamo <label for>, un ID è buona pratica.
-    const checkboxId = `chk-${uniqueSuffix.replace(/[^a-zA-Z0-9-_]/g, '-')}`;
+function formattaDistanzaKm(distanzaMetri, decimali = 1) {
+    return MapElementsRenderer.formattaDistanzaKm(distanzaMetri, decimali);
+}
 
+function creaCheckbox(item, checked = true, uniqueSuffix) {
+    const safeLabel = MapElementsRenderer.escapeHtml(item.label);
+    // Genera un ID univoco per l'input checkbox
+    const checkboxId = `chk-${uniqueSuffix.replace(/[^a-zA-Z0-9-_]/g, '-')}`;
     let linksHtml = '';
-    // Considero diverse possibili fonti di link nell'oggetto item
     const linkSources = item.fonti || [];
 
     if (linkSources && Array.isArray(linkSources) && linkSources.length > 0) {
-        linksHtml = linkSources.map(fonte => {
+        linksHtml = `<div style="margin-top: var(--sp-sm); font-size: var(--fs-xs);">
+                      <span style="font-weight: 500; color: var(--color-text);">Fonti:</span><br>`;
+        
+        linkSources.forEach((fonte, idx) => {
             if (typeof fonte === 'string') { // Array di URL stringhe
-                return `<a href="${escapeHtml(fonte)}" target="_blank" rel="noopener noreferrer">${escapeHtml(fonte)}</a>`;
+                linksHtml += `<a href="${MapElementsRenderer.escapeHtml(fonte)}" target="_blank" rel="noopener noreferrer" 
+                                style="color: var(--color-primary); text-decoration: underline; display: inline-block; margin-top: var(--sp-xxs);">
+                                ${MapElementsRenderer.escapeHtml(fonte.substring(0, 40))}${fonte.length > 40 ? '...' : ''}
+                             </a><br>`;
             }
-            if (fonte && typeof fonte.url === 'string') { // Array di oggetti {nome, url} o {text, url}
+            else if (fonte && typeof fonte.url === 'string') { // Array di oggetti {nome, url} o {text, url}
                 const text = fonte.nome || fonte.text || fonte.url;
-                return `<a href="${escapeHtml(fonte.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(text)}</a>`;
+                linksHtml += `<a href="${MapElementsRenderer.escapeHtml(fonte.url)}" target="_blank" rel="noopener noreferrer"
+                                style="color: var(--color-primary); text-decoration: underline; display: inline-block; margin-top: var(--sp-xxs);">
+                                ${MapElementsRenderer.escapeHtml(text)}
+                             </a><br>`;
             }
-            return ''; // Ignora formati non riconosciuti
-        }).filter(Boolean).join(''); // Filtra stringhe vuote e unisce
+        });
+        
+        linksHtml += `</div>`;
     }
 
     return `
@@ -1423,321 +1706,26 @@ function creaCheckbox(item, checked = true, uniqueSuffix) {
 }
 
 function creaIconaCerchio(carattere, coloreBordoVar, coloreSfondoVar, dimensionePx = 20, fontSizePx = 14) {
-    const coloreBordo = getCSSVar(coloreBordoVar);
-    const coloreSfondo = getCSSVar(coloreSfondoVar);
-    const coloreTesto = getCSSVar(coloreBordoVar);
-
-    return `
-        <div style="
-            width: ${dimensionePx}px;
-            height: ${dimensionePx}px;
-            border: 2px solid ${coloreBordo};
-            border-radius: 50%;
-            background: ${coloreSfondo};
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 500;
-            font-size: ${fontSizePx}px;
-            color: ${coloreTesto};">
-            ${carattere}
-        </div>`;
+    return MapElementsRenderer.creaIconaCerchio(carattere, coloreBordoVar, coloreSfondoVar, dimensionePx, fontSizePx);
 }
-
 function generaPopupHtml(punto, centers) {
-    const [lon, lat] = proj4('EPSG:32632', 'EPSG:4326', [punto.x, punto.y]);
-
-    let popupHtml = `
-        <div class="popup-container">
-            <div class="popup-header">
-                <span class="popup-title">${escapeHtml(punto.label)}</span>
-                <span class="coordinate">${lat.toFixed(4)}°N, ${lon.toFixed(4)}°E</span>
-                <span class="coordinate">UTM: ${Math.round(punto.x)}E, ${Math.round(punto.y)}N</span>
-            </div>
-    `;
-    if (centers.length > 0) {
-        popupHtml += `
-            <table class="popup-table">
-                <thead>
-                    <tr>
-                        <th>Centro</th>
-                        <th>Distanza</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${centers
-                .map(c => {
-                    const distanza = Math.hypot(punto.x - c.x, punto.y - c.y);
-                    return `
-                                <tr>
-                                    <td>${escapeHtml(c.label)}</td>
-                                    <td>${formattaDistanzaKm(distanza, 1)}</td>
-                                </tr>
-                            `;
-                })
-                .join('')}
-                </tbody>
-            </table>
-        `;
+    return MapElementsRenderer.generaPopupHtml(punto, centers, window.casoAttivo);
+}
+function convertiUTMtoWGS84(x, y, caso = 'mdf') {
+    if (caso === 'mdf') {
+        return proj4('EPSG:32632', 'EPSG:4326', [x, y]);
+    } else { // caso zodiac
+        return proj4('EPSG:32610', 'EPSG:4326', [x, y]);
     }
-    popupHtml += `</div>`;
-    return popupHtml;
 }
-
-function formattaDistanzaKm(distanzaMetri, decimali = 1) {
-    return `${(distanzaMetri / 1000).toFixed(decimali)} km`;
+function convertiWGS84toUTM(lon, lat, caso = 'mdf') {
+    if (caso === 'mdf') {
+        return proj4('EPSG:4326', 'EPSG:32632', [lon, lat]);
+    } else { // caso zodiac
+        return proj4('EPSG:4326', 'EPSG:32610', [lon, lat]);
+    }
 }
-
-/*
-function convertiCoordinataUTM(lat, lon) {
-    return proj4('EPSG:32632', 'EPSG:4326', [lat, lon]);
-}
-    */
-
-function convertiUTMtoWGS84(x, y) {
-    return proj4('EPSG:32632', 'EPSG:4326', [x, y]);
-}
-
-function convertiWGS84toUTM(lat, lon) {
-    return proj4('EPSG:4326', 'EPSG:32632', [lon, lat]);
-}
-
 function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
-};
-
+    return MapElementsRenderer.escapeHtml(str);
+}
 window.addEventListener('DOMContentLoaded', () => new GeoAnalysisApp());
-
-// Funzione per ottenere i colori personalizzati dall'utente
-function getColoriAnalisi() {
-  const coloriPredefiniti = {
-    baricentro: { bg: '#E8F5E9', bordo: '#4CAF50' },
-    mediana: { bg: '#E8F5E9', bordo: '#E53935' },
-    fermat: { bg: '#FFF8E1', bordo: '#FB8C00' },
-    canter: { bg: '#EDE7F6', bordo: '#673AB7' },
-    cerchioCanter: '#673AB7',
-    cpr: { bg: '#F5F5F5', bordo: '#616161' },
-    cerchioCpr: '#616161',
-    chp: '#616161',
-    mid: '#2196F3',
-    nni: { bg: '#F3E5F5', bordo: '#8E24AA' },
-    voronoi: '#2196F3',
-    delaunay: '#FF9800',
-    voronoiDelaunay: { bg: '#F5F5F5', bordo: '#8B0000' }
-  };
-
-  // Carica i colori salvati, se esistono
-  const coloriSalvati = JSON.parse(localStorage.getItem('coloriAnalisi')) || {};
-  return { ...coloriPredefiniti, ...coloriSalvati };
-}
-
-// Modifica la funzione che crea il baricentro per usare i colori personalizzati
-function creaBaricentro(coordinate) {
-  const colori = getColoriAnalisi();
-  // ... existing code ...
-  
-  // Modifica per usare i colori personalizzati
-  const markerBaricentro = L.circleMarker([y, x], {
-    radius: 8,
-    weight: 2,
-    opacity: 1,
-    color: colori.baricentro.bordo,
-    fillColor: colori.baricentro.bg,
-    fillOpacity: 0.9
-  }).addTo(mappa);
-  
-  // ... existing code ...
-}
-
-// Modifica la funzione che crea la mediana per usare i colori personalizzati
-function creaMediana(coordinate) {
-  const colori = getColoriAnalisi();
-  // ... existing code ...
-  
-  // Modifica per usare i colori personalizzati
-  const markerMediana = L.circleMarker([y, x], {
-    radius: 8,
-    weight: 2,
-    opacity: 1,
-    color: colori.mediana.bordo,
-    fillColor: colori.mediana.bg,
-    fillOpacity: 0.9
-  }).addTo(mappa);
-  
-  // ... existing code ...
-}
-
-// Modifica la funzione che crea il centro di Fermat per usare i colori personalizzati
-function creaFermatCenter(coordinate) {
-  const colori = getColoriAnalisi();
-  // ... existing code ...
-  
-  // Modifica per usare i colori personalizzati
-  const markerFermat = L.circleMarker([y, x], {
-    radius: 8,
-    weight: 2,
-    opacity: 1,
-    color: colori.fermat.bordo,
-    fillColor: colori.fermat.bg,
-    fillOpacity: 0.9
-  }).addTo(mappa);
-  
-  // ... existing code ...
-}
-
-// Modifica la funzione che crea il cerchio di Canter per usare i colori personalizzati
-function creaCerchioCanter(delitti) {
-  const colori = getColoriAnalisi();
-  // ... existing code ...
-  
-  // Modifica per usare i colori personalizzati
-  const markerCanter = L.circleMarker([centerY, centerX], {
-    radius: 8,
-    weight: 2,
-    opacity: 1,
-    color: colori.canter.bordo,
-    fillColor: colori.canter.bg,
-    fillOpacity: 0.9
-  }).addTo(mappa);
-  
-  const circleCanter = L.circle([centerY, centerX], {
-    radius: radius * 1000, // converte in metri
-    weight: 2,
-    color: colori.cerchioCanter,
-    opacity: 0.7,
-    fill: false
-  }).addTo(mappa);
-  
-  // ... existing code ...
-}
-
-// Modifica la funzione che crea il CPR per usare i colori personalizzati
-function creaCentroProbabileResidenza(punti) {
-  const colori = getColoriAnalisi();
-  // ... existing code ...
-  
-  // Modifica per usare i colori personalizzati
-  const markerCPR = L.circleMarker([centroY, centroX], {
-    radius: 8,
-    weight: 2,
-    opacity: 1,
-    color: colori.cpr.bordo,
-    fillColor: colori.cpr.bg,
-    fillOpacity: 0.9
-  }).addTo(mappa);
-  
-  const circleCPR = L.circle([centroY, centroX], {
-    radius: cprRadius * 1000, // converte in metri
-    weight: 2,
-    color: colori.cerchioCpr,
-    opacity: 0.6,
-    fillOpacity: 0.05,
-    fillColor: colori.cerchioCpr
-  }).addTo(mappa);
-  
-  // ... existing code ...
-}
-
-// Modifica la funzione che crea il Convex Hull per usare i colori personalizzati
-function creaConvexHull(coordinate) {
-  const colori = getColoriAnalisi();
-  // ... existing code ...
-  
-  // Modifica per usare i colori personalizzati
-  const convexHull = L.polygon(coordinateHull, {
-    color: colori.chp,
-    weight: 2,
-    opacity: 0.7,
-    fillOpacity: 0.1
-  }).addTo(mappa);
-  
-  // ... existing code ...
-}
-
-// Modifica la funzione che crea il MID per usare i colori personalizzati
-function creaMeanInterpointDistance(coordinate) {
-  const colori = getColoriAnalisi();
-  // ... existing code ...
-  
-  // Modifica per usare i colori personalizzati
-  const circleMarker = L.circle([centroY, centroX], {
-    radius: midValue * 1000, // converte in metri
-    weight: 2,
-    color: colori.mid,
-    opacity: 0.7,
-    fillOpacity: 0.1,
-    dashArray: '5, 5'
-  }).addTo(mappa);
-  
-  // ... existing code ...
-}
-
-// Modifica la funzione che crea i poligoni di Voronoi per usare i colori personalizzati
-function creaVoronoi(coordinate) {
-  const colori = getColoriAnalisi();
-  // ... existing code ...
-  
-  // Modifica per usare i colori personalizzati
-  const voronoiLayer = L.geoJSON(voronoiPolygons, {
-    style: {
-      color: colori.voronoi,
-      weight: 2,
-      opacity: 0.7,
-      fillOpacity: 0.1
-    }
-  }).addTo(mappa);
-  
-  // ... existing code ...
-}
-
-// Modifica la funzione che crea la triangolazione di Delaunay per usare i colori personalizzati
-function creaDelaunay(coordinate) {
-  const colori = getColoriAnalisi();
-  // ... existing code ...
-  
-  // Modifica per usare i colori personalizzati
-  const delaunayLayer = L.geoJSON(delaunayLines, {
-    style: {
-      color: colori.delaunay,
-      weight: 2,
-      opacity: 0.7
-    }
-  }).addTo(mappa);
-  
-  // ... existing code ...
-}
-
-// Modifica la funzione che crea il baricentro delle intersezioni per usare i colori personalizzati
-function creaVoronoiDelaunayIntersection(delitti) {
-  const colori = getColoriAnalisi();
-  // ... existing code ...
-  
-  // Modifica per usare i colori personalizzati
-  const markerVD = L.circleMarker([centroY, centroX], {
-    radius: 8,
-    weight: 2,
-    opacity: 1,
-    color: colori.voronoiDelaunay.bordo,
-    fillColor: colori.voronoiDelaunay.bg,
-    fillOpacity: 0.9
-  }).addTo(mappa);
-  
-  // ... existing code ...
-}
-
-// Modifica la funzione che crea il marker NNI per usare i colori personalizzati
-function creaNearestNeighborIndex(coordinate) {
-  const colori = getColoriAnalisi();
-  // ... existing code ...
-  
-  // Quando crei il marker custom, aggiungi un attributo data-tipo
-  const htmlContent = `
-    <div class="legend-marker special" data-tipo="nni" style="background: ${colori.nni.bg}; border: 2px solid ${colori.nni.bordo}; color: ${colori.nni.bordo}; font-size: 8px;">
-      NNI
-    </div>
-  `;
-  
-  // ... existing code ...
-}

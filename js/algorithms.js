@@ -13,6 +13,7 @@
  * - meanInterpointDistance (MID), distanza media tra tutte le coppie di punti.
  * - nearestNeighborIndex (NNI), valuta raggruppamento/dispersione dei punti.
  * - calcolaDeviazioneStandardDistanze.
+ * - kernelDensityEstimation (KDE), stima della densità spaziale dei punti.
  *
  * Dipendenze interne:
  * - variabili globali di configurazione
@@ -118,6 +119,7 @@ const algoritmiGeometrici = {
             let maxDist = 0;
             let coppia = null;
 
+            // Cerchiamo i due punti più distanti
             algoritmiGeometrici.perOgniCoppia(punti, (p1, p2, idx1, idx2) => {
                 const dist = algoritmiGeometrici.distanzaTraPunti(p1, p2);
                 if (dist > maxDist) {
@@ -125,12 +127,16 @@ const algoritmiGeometrici = {
                     coppia = [idx1, idx2];
                 }
             });
+            
+            // Calcoliamo il punto medio tra i due punti più distanti
             const puntoMedio = algoritmiGeometrici.puntoMedio(punti[coppia[0]], punti[coppia[1]]);
+            
             return {
                 ...puntoMedio,
                 raggio: maxDist / 2
             };
         } catch (error) {
+            console.error("Errore nel calcolo del cerchio di Canter:", error);
             return { x: 0, y: 0, raggio: 0 };
         }
     },
@@ -786,5 +792,57 @@ const algoritmiGeometrici = {
             ...coord,
             raggio: algoritmiGeometrici.calcolaRaggioMassimo(punti, coord)
         };
-    }
+    },
+
+    regressioneLineare: punti => {
+        algoritmiGeometrici.validaArrayPunti(punti);
+        const n = punti.length;
+        if (n < 2) {
+            return { m: 0, q: n === 1 ? punti[0].y : 0, r2: NaN, equazione: "N/A" };
+        }
+
+        let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0;
+        punti.forEach(p => {
+            sumX += p.x;
+            sumY += p.y;
+            sumXY += p.x * p.y;
+            sumX2 += p.x * p.x;
+        });
+
+        const denominatore = n * sumX2 - sumX * sumX;
+
+        // Gestione retta verticale o punti coincidenti sull'asse x
+        if (Math.abs(denominatore) < window.EPSILON) {
+            // Verifica se tutti i punti hanno la stessa x
+            const primaX = punti[0].x;
+            if (punti.every(p => Math.abs(p.x - primaX) < window.EPSILON)) {
+                 return { m: Infinity, q: primaX, r2: NaN, equazione: `x = ${primaX.toFixed(2)}` };
+            } else {
+                // Caso degenere, non una retta
+                return { m: NaN, q: NaN, r2: NaN, equazione: "Dati degeneri" };
+            }
+        }
+
+        const m = (n * sumXY - sumX * sumY) / denominatore;
+        const q = (sumY - m * sumX) / n;
+
+        // Calcolo R²
+        const meanY = sumY / n;
+        let ssTot = 0; // Somma totale dei quadrati
+        let ssRes = 0; // Somma dei quadrati residui
+        punti.forEach(p => {
+            const yPred = m * p.x + q;
+            ssTot += (p.y - meanY) * (p.y - meanY);
+            ssRes += (p.y - yPred) * (p.y - yPred);
+        });
+
+        const r2 = (Math.abs(ssTot) < window.EPSILON) ? 1 : 1 - (ssRes / ssTot);
+
+        return {
+            m: m,
+            q: q,
+            r2: r2,
+            equazione: `y = ${m.toFixed(2)}x ${q >= 0 ? '+' : '-'} ${Math.abs(q).toFixed(2)}`
+        };
+    },
 };

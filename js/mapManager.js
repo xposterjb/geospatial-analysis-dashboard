@@ -17,7 +17,7 @@ class MapManager {
             preferCanvas: false,
             zoomDelta: 0.5,     // Permette livelli di zoom intermedi
             zoomSnap: 0.5,      // Aggancia lo zoom a incrementi di 0.5
-            wheelPxPerZoomLevel: 120   // Controllo più fine con la rotellina del mouse
+            wheelPxPerZoomLevel: 120
         }).setView([43.78, 11.2], 11);
 
         this.svgRenderer = L.svg().addTo(this.map);
@@ -40,7 +40,6 @@ class MapManager {
 
         this.baseMaps.chiaro.addTo(this.map);
 
-        // Creiamo prima il container per entrambi i pannelli
         this.creaPannelliContainer();
         this.inizializzaStrumentiDisegno();
         this.creaSelettoreMappa();
@@ -63,6 +62,7 @@ class MapManager {
             }
         });
     }
+
 
     creaPannelliContainer() {
         // Crea il container principale per i pannelli
@@ -103,7 +103,6 @@ class MapManager {
             selectorContainer.appendChild(option);
         });
 
-        // Aggiungiamo il selettore mappa al container dei pannelli anziché direttamente alla mappa
         this.pannelliContainer.appendChild(selectorContainer);
 
         const mappaIniziale = document.documentElement.getAttribute('data-theme') === 'dark' ? 'scuro' : 'chiaro';
@@ -162,22 +161,15 @@ class MapManager {
         // Aggiorno le dimensioni della mappa
         this.map.invalidateSize();
     }
-
-    /**
-     * Aggiorna le dimensioni della mappa dopo un cambiamento di layout
-     * Utile quando la sidebar viene collassata o espansa
-     */
     updateMapSize() {
         if (this.map) {
             this.map.invalidateSize();
         }
     }
-
     clear() {
         this.layers.forEach(layer => this.map.removeLayer(layer));
         this.layers = [];
     }
-
     addPoint(lat, lon, options = {}) {
         const defaults = {
             color: '#ff4444',
@@ -215,8 +207,6 @@ class MapManager {
             marker.getElement().style.pointerEvents = 'none';
             marker.getElement().style.cursor = 'default';
         }
-
-        // Gestione popup con supporto per modalità disegno
         if (options.popup) {
             const popupOriginal = options.popup;
             marker.bindPopup(popupOriginal);
@@ -228,7 +218,6 @@ class MapManager {
                 }
             });
         }
-
         if (options.tooltip) {
             marker.bindTooltip(options.tooltip, {
                 permanent: options.permanentTooltip || false,
@@ -245,7 +234,7 @@ class MapManager {
     addIcon(lat, lon, options = {}) {
         const icon = L.divIcon({
             html: options.html || '',
-            className: '',
+            className: options.className || '',
             iconSize: [30, 30],
             iconAnchor: options.iconAnchor || [15, 30],
         });
@@ -265,7 +254,17 @@ class MapManager {
                 console.warn('Impossibile modificare lo stile del marker in modalità disegno', error);
             }
         } else {
-            marker.addTo(this.map);
+            marker.addTo(this.map);            
+            if (options.className && options.className.includes('centro-geometrico-icon')) {
+                try {
+                    const element = marker.getElement();
+                    if (element) {
+                        element.classList.add('centro-geometrico-icon');
+                    }
+                } catch (error) {
+                    console.warn('Impossibile applicare la classe al marker', error);
+                }
+            }
         }
 
         if (options.popup) {
@@ -279,7 +278,6 @@ class MapManager {
                 }
             });
         }
-
         if (options.tooltip) {
             marker.bindTooltip(options.tooltip, {
                 permanent: options.permanentTooltip,
@@ -288,7 +286,6 @@ class MapManager {
                 opacity: 0.9
             });
         }
-
         this.layers.push(marker);
         return marker;
     }
@@ -341,7 +338,80 @@ class MapManager {
         if (settings.popup) {
             line.bindPopup(settings.popup);
         }
+        this.layers.push(line);
+        return line;
+    }
 
+    addArrow(coord1, coord2, options = {}) {
+        const defaults = {
+            color: '#000000',
+            weight: 2,
+            opacity: 1,
+            popup: null,
+            arrowSize: 8,
+            label: null,
+            labelColor: '#ffffff',
+            labelBgColor: '#000000'
+        };
+        const settings = { ...defaults, ...options };
+        
+        const line = L.polyline([coord1, coord2], {
+            color: settings.color,
+            weight: settings.weight,
+            opacity: settings.opacity,
+            renderer: this.svgRenderer
+        }).addTo(this.map);
+        
+        const midPoint = L.latLng(
+            (coord1[0] + coord2[0]) / 2,
+            (coord1[1] + coord2[1]) / 2
+        );    
+
+        const angle = Math.atan2(coord2[1] - coord1[1], coord2[0] - coord1[0]) * 180 / Math.PI;        
+        // La freccia è orientata nella direzione della linea
+        const arrowIcon = L.divIcon({
+            html: `<svg width="${settings.arrowSize * 2}" height="${settings.arrowSize * 2}" style="transform: rotate(${angle + 90}deg)">
+                     <polygon points="${settings.arrowSize},0 0,${settings.arrowSize * 2} ${settings.arrowSize * 2},${settings.arrowSize * 2}" 
+                              fill="${settings.color}" />
+                   </svg>`,
+            className: 'arrow-marker',
+            iconSize: [settings.arrowSize * 2, settings.arrowSize * 2],
+            iconAnchor: [settings.arrowSize, settings.arrowSize]
+        });
+        
+        const arrowPosition = L.latLng(coord2[0], coord2[1]);
+        
+        const arrowMarker = L.marker(arrowPosition, { icon: arrowIcon }).addTo(this.map);
+        this.layers.push(arrowMarker);
+        
+        if (settings.label !== null) {
+            const labelIcon = L.divIcon({
+                html: `<div style="
+                         background-color: ${settings.labelBgColor}; 
+                         color: ${settings.labelColor};
+                         border-radius: 50%;
+                         width: 20px;
+                         height: 20px;
+                         display: flex;
+                         align-items: center;
+                         justify-content: center;
+                         font-weight: bold;
+                         font-size: 12px;
+                         border: 2px solid ${settings.color};">${settings.label}</div>`,
+                className: 'segment-label',
+                iconSize: [24, 24],
+                iconAnchor: [12, 12]
+            });
+            
+            const labelMarker = L.marker(midPoint, { icon: labelIcon }).addTo(this.map);
+            this.layers.push(labelMarker);
+            
+            if (settings.popup) {
+                labelMarker.bindPopup(settings.popup);
+            }
+        } else if (settings.popup) {
+            line.bindPopup(settings.popup);
+        }        
         this.layers.push(line);
         return line;
     }
@@ -376,7 +446,6 @@ class MapManager {
         
         if (options.popup) {
             polygon.bindPopup(options.popup);            
-            // Rimuovi gestore eventi di clic predefinito
             polygon.off('click');
             
             polygon.on('click', (e) => {
@@ -441,14 +510,12 @@ class MapManager {
         const drawControlContainer = document.createElement('div');
         drawControlContainer.className = 'map-tools-container';
         
-        // Aggiungiamo il container strumenti al container dei pannelli anziché direttamente alla mappa
         this.pannelliContainer.appendChild(drawControlContainer);
 
         const toolsGroup = document.createElement('div');
         toolsGroup.className = 'map-tools-group';
         drawControlContainer.appendChild(toolsGroup);
 
-        // Configurazione dei pulsanti degli strumenti
         const tools = [
             { id: 'measure', label: 'Misura Distanza', icon: 'straighten', action: () => this.attivaMisuraDistanza() },
             { id: 'draw-line', label: 'Disegna Linea', icon: 'timeline', action: () => this.attivaDisegnoLinea() },
@@ -478,8 +545,6 @@ class MapManager {
             });
             toolsGroup.appendChild(button);
         });
-
-        // Inizializza i layer per disegni e misurazioni
         this.drawLayer = new L.FeatureGroup().addTo(this.map);
         this.measureLayer = new L.FeatureGroup().addTo(this.map);
     }
@@ -512,7 +577,6 @@ class MapManager {
                 const segmentDistance = this.map.distance(points[i - 1], points[i]);
                 distanzaTotale += segmentDistance;
 
-                // Mostra la lunghezza del segmento
                 const midPoint = L.latLng(
                     (points[i - 1].lat + points[i].lat) / 2,
                     (points[i - 1].lng + points[i].lng) / 2
@@ -845,14 +909,12 @@ class MapManager {
                 this.drawLayer.removeLayer(polygon);
                 polygon = null;
             }
-
             const hull = calcolaConvexHull(points);
 
             if (hull.length < 3) {
                 puntiHull = hull;
                 return;
             }
-
             puntiHull = hull;
 
             polygon = L.polygon(hull, {
@@ -953,7 +1015,6 @@ class MapManager {
         };
 
         this.drawPolygonHandler = (e) => {
-            // Ignora i click su elementi UI interattivi definiti
             if (selettoriIgnoraClick.some(sel => e.originalEvent.target.closest(sel))) {
                 return;
             }
@@ -1138,7 +1199,6 @@ class MapManager {
             }
         });
         
-        // Aggiorna anche l'interattività dei poligoni
         this.layers.forEach(layer => {
             if (layer instanceof L.Polygon || layer instanceof L.Polyline) {
                 if (this.isDrawingMode) {
@@ -1173,7 +1233,6 @@ class MapManager {
         // La distanza tra due gradi di longitudine dipende dalla latitudine: 111.32 * cos(lat) km
         const metrPerLatDegree = 111320; // 111.32 km in metri
         const metrPerLngDegree = 111320 * Math.cos(latMedia * Math.PI / 180);
-        // Area in metri quadrati
         return area * metrPerLatDegree * metrPerLngDegree;
     }
 
@@ -1189,4 +1248,29 @@ class MapManager {
             this.markers.splice(markerIndex, 1);
         }
     }
+
+    onceClick(callback) {
+        if (this.singleClickHandler) {
+            this.map.off('click', this.singleClickHandler);
+            this.singleClickHandler = null;
+        }
+        
+        this.singleClickHandler = (e) => {
+            if (e.originalEvent.target.closest('.map-tools-container') ||
+                e.originalEvent.target.closest('.map-selector') ||
+                e.originalEvent.target.closest('.leaflet-control')) {
+                return;
+            }            
+            this.map.off('click', this.singleClickHandler);
+            this.singleClickHandler = null;
+            
+            callback(e);
+        };        
+        this.map.on('click', this.singleClickHandler);
+    }
+}
+
+function edit_file(geoAnalysis_js) {
+  const geoAnalysisSenzaGetColori = geoAnalysis_js.replace(/function getColoriAnalisi\(\) \{[\s\S]*?return \{ \.\.\.coloriPredefiniti, \.\.\.coloriSalvati \};[\s\S]*?\}/, "");  
+  return geoAnalysisSenzaGetColori;
 }
