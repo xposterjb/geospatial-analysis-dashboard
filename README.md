@@ -23,24 +23,50 @@ Include i principali luoghi legati al caso MdF:
   - Centro di Probabile Residenza (CPR) con parametri configurabili  
   - Convex Hull  
   - Mean Interpoint Distance (MID)  
-  - Nearest Neighbour Index (NNI)  
-- Aggiunta manuale di nuovi punti sulla mappa  
-- Strumenti di disegno di base  
-- Visualizzazione di etichette e dettagli per ciascun punto
+  - Nearest Neighbour Index (NNI)
+  - Retta di regressione lineare
+  - Percorso cronologico dei delitti
+  - Poligoni di Voronoi
+  - Triangolazione di Delaunay
+  - Baricentro intersezioni Voronoi e Delaunay
+- Aggiunta manuale di nuovi punti sulla mappa
+- Strumenti di disegno e misurazione:
+  - Misurazione di distanze
+  - Disegno di linee e poligoni
+  - Calcolo dell'area di poligoni
+- Opzioni di personalizzazione:
+  - Tema chiaro/scuro
+  - Diversi tipi di mappa (standard, satellite, topografica)
+  - Configurazione dei parametri di calcolo
+
+### Case Study
+
+L'applicazione include anche dati per l'analisi del caso Zodiac, selezionabile dall'interfaccia.
 
 ### In sviluppo / Aggiornamenti futuri
 
 - Salvataggio locale dei punti di interesse  
 - Esportazione dei dati e delle analisi  
-- Miglioramenti all’accessibilità e all’interfaccia  
+- Miglioramenti all'accessibilità e all'interfaccia  
 - Ottimizzazione delle prestazioni  
 - Revisione del dataset  
 - Documentazione più dettagliata
 
 ### Centro di Probabile Residenza (CPR)
 
-Il CPR è un algoritmo iterativo che assegna a ciascun luogo un peso in base alla distanza dal baricentro dei delitti, al delta temporale e al tipo di punto (delitto, luogo d’interesse, ecc.).  
+Il CPR è un algoritmo iterativo che assegna a ciascun luogo un peso in base alla distanza dal baricentro dei delitti, al delta temporale e al tipo di punto (delitto, luogo d'interesse, ecc.).  
 Questo metodo non ha valenza criminologica o scientifica, ma può essere utile per testare ipotesi avanzate in modo esplorativo.
+
+Parametri configurabili del CPR:
+- Raggio di azione (km)
+- Tasso decadimento temporale
+- Peso delitti principali
+- Peso eventi collaterali
+- Peso punti di interesse
+- Peso fattore distanza (JW)
+- Peso fattore tempo (DT)
+- Peso fattore tipo (PB)
+- Limite raggio cerchio CPR (km)
 
 ### Fonti
 
