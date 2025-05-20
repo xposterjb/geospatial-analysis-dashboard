@@ -125,9 +125,18 @@ const MapElementsRenderer = {
                 box-shadow: ${MapElementsRenderer.getCSSVar('--shadow-sm')};
                 text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);">→</div>`;
     },    
-    creaMarkerDelitto: (isCollaterale = false) => {
+    creaMarkerDelitto: (isCollaterale = false, numeroDelitto) => {
         const iconClass = isCollaterale ? 'delitto-collaterale-icon' : 'delitto-icon';
-        return `<span class="material-icons map-marker-icon ${iconClass}">warning</span>`;
+        let numeroHtml = '';
+        if (numeroDelitto !== undefined) {
+            numeroHtml = `<span class="numero-delitto-marker">${numeroDelitto}</span>`;
+        }
+        return `
+            <span class="map-marker-delitto-wrapper">
+                ${numeroHtml}
+                <span class="material-icons map-marker-icon ${iconClass}">warning</span>
+            </span>
+        `;
     },
     creaMarkerPuntoInteresse: () => {
         return `<span class="material-icons map-marker-icon interesse-icon">location_on</span>`;

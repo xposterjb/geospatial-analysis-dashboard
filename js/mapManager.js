@@ -61,6 +61,9 @@ class MapManager {
                 document.querySelectorAll('.map-tool-btn').forEach(btn => btn.classList.remove('active'));
             }
         });
+        
+        // Callback per quando un punto viene aggiunto
+        this.onPointAdded = null;
     }
 
 
@@ -468,6 +471,166 @@ class MapManager {
         }
     }
 
+    /**
+     * Attiva la modalità aggiunta punto: attende click su mappa, mostra popup per nome/fonte/salva.
+     * @param {string} tipo - Tipo di punto da aggiungere
+     */
+    attivaPannelloAggiungiPunto() {
+        this.disattivaHandlerAttivi();
+        this.isDrawingMode = true;
+        this.aggiornaInterattivitaMarker();
+        
+        // Mostra la barra di tipo punti e imposta il bottone come attivo
+        this.aggiungiPuntoTypeBar.style.display = 'flex';
+        document.querySelector('#tool-add-point').classList.add('active');
+        
+        this.mostraMessaggioIstruzioni('Seleziona il tipo di punto da aggiungere dalla barra superiore.');
+    }
+    
+    attivaModalitaAggiungiPunto(tipo) {
+        if (this._aggiungiPuntoCleanup) {
+            this._aggiungiPuntoCleanup();
+            this._aggiungiPuntoCleanup = null;
+        }
+        
+        const mapContainer = document.getElementById('map');
+        if (!mapContainer) return;
+        
+        mapContainer.style.cursor = 'crosshair';
+        let tempMarker = null;
+        let popupDiv = null;
+
+        this._aggiungiPuntoCleanup = () => {
+            mapContainer.style.cursor = '';
+            if (tempMarker) {
+                this.removeMarker(tempMarker);
+                tempMarker = null;
+            }
+            if (popupDiv && popupDiv.parentNode) {
+                popupDiv.parentNode.removeChild(popupDiv);
+                popupDiv = null;
+            }
+        };
+
+        this.onceClick((e) => {
+            const lat = e.latlng.lat;
+            const lon = e.latlng.lng;
+            let markerHtml = '';
+            switch (tipo) {
+                case 'delitto': markerHtml = MapElementsRenderer.creaMarkerDelitto(false); break;
+                case 'collaterale': markerHtml = MapElementsRenderer.creaMarkerDelitto(true); break;
+                case 'poi': markerHtml = MapElementsRenderer.creaMarkerPuntoInteresse(); break;
+                case 'abitazioneVittima': markerHtml = MapElementsRenderer.creaMarkerAbitazioneVittima(); break;
+                case 'abitazioneSospettato': markerHtml = MapElementsRenderer.creaMarkerAbitazioneSospettato(); break;
+                default: markerHtml = MapElementsRenderer.creaMarkerPuntoInteresse();
+            }
+            
+            tempMarker = this.addIcon(lat, lon, {
+                html: markerHtml,
+                className: 'temp-marker',
+                iconAnchor: [15, 30]
+            });
+
+            // Crea popup custom HTML migliorato
+            popupDiv = document.createElement('div');
+            popupDiv.className = 'custom-add-point-popup';
+            let annoField = '';
+            if (tipo === 'delitto' || tipo === 'collaterale') {
+                annoField = `
+                    <label for="popup-anno-punto" class="popup-label">Anno <span style='color:var(--color-danger)'>*</span></label>
+                    <input type="number" class="popup-input" id="popup-anno-punto" placeholder="Anno" min="1800" max="2100" required style="margin-bottom: var(--sp-xs);" />
+                `;
+            } else {
+                annoField = `
+                    <label for="popup-anno-punto" class="popup-label">Anno</label>
+                    <input type="number" class="popup-input" id="popup-anno-punto" placeholder="Anno (opzionale)" min="1800" max="2100" style="margin-bottom: var(--sp-xs);" />
+                `;
+            }
+            
+            popupDiv.innerHTML = `
+                <div class="popup-title" style="font-size:1.1rem;font-weight:600;margin-bottom:var(--sp-sm);color:var(--color-primary)">Aggiungi punto</div>
+                <label for="popup-nome-punto" class="popup-label">Nome <span style='color:var(--color-danger)'>*</span></label>
+                <input type="text" class="popup-input" id="popup-nome-punto" placeholder="Nome del punto" autocomplete="off" required style="margin-bottom: var(--sp-xs);" />
+                ${annoField}
+                <label for="popup-fonte-punto" class="popup-label">Fonte</label>
+                <input type="text" class="popup-input" id="popup-fonte-punto" placeholder="Fonte (opzionale)" autocomplete="off" style="margin-bottom: var(--sp-xs);" />
+                <div class="popup-actions" style="display:flex;gap:var(--sp-md);margin-top:var(--sp-sm);justify-content:flex-end;">
+                    <button class="btn btn-primary" id="popup-salva-punto">Salva</button>
+                    <button class="btn btn-secondary" id="popup-annulla-punto">Annulla</button>
+                </div>
+            `;
+            
+            const markerLatLng = L.latLng(lat, lon);
+            const markerPoint = this.map.latLngToContainerPoint(markerLatLng);
+            popupDiv.style.position = 'absolute';
+            popupDiv.style.left = `${markerPoint.x + 20}px`;
+            popupDiv.style.top = `${markerPoint.y - 10}px`;
+            popupDiv.style.zIndex = 3000;
+            popupDiv.style.minWidth = '240px';
+            popupDiv.style.background = 'var(--color-white)';
+            popupDiv.style.boxShadow = 'var(--shadow-md)';
+            popupDiv.style.borderRadius = 'var(--radius-md)';
+            popupDiv.style.padding = 'var(--sp-lg)';
+            popupDiv.style.display = 'flex';
+            popupDiv.style.flexDirection = 'column';
+            popupDiv.style.gap = 'var(--sp-xs)';
+
+            mapContainer.appendChild(popupDiv);
+
+            setTimeout(() => {
+                const nomeInput = document.getElementById('popup-nome-punto');
+                if (nomeInput) nomeInput.focus();
+            }, 100);
+
+            // Handler Salva
+            popupDiv.querySelector('#popup-salva-punto').addEventListener('click', () => {
+                const nome = MapElementsRenderer.escapeHtml(popupDiv.querySelector('#popup-nome-punto').value.trim());
+                const fonte = popupDiv.querySelector('#popup-fonte-punto').value.trim();
+                const annoVal = popupDiv.querySelector('#popup-anno-punto').value.trim();
+                let year = annoVal ? parseInt(annoVal, 10) : null;
+                
+                if (!nome) {
+                    popupDiv.querySelector('#popup-nome-punto').focus();
+                    popupDiv.querySelector('#popup-nome-punto').style.borderColor = 'var(--color-danger)';
+                    return;
+                } else {
+                    popupDiv.querySelector('#popup-nome-punto').style.borderColor = '';
+                }
+                
+                if ((tipo === 'delitto' || tipo === 'collaterale')) {
+                    if (!year || isNaN(year) || year < 1800 || year > 2100) {
+                        popupDiv.querySelector('#popup-anno-punto').focus();
+                        popupDiv.querySelector('#popup-anno-punto').style.borderColor = 'var(--color-danger)';
+                        return;
+                    } else {
+                        popupDiv.querySelector('#popup-anno-punto').style.borderColor = '';
+                    }
+                }
+                
+                // Chiama il callback se è stato definito
+                if (this.onPointAdded) {
+                    this.onPointAdded({
+                        tipo,
+                        nome,
+                        lat,
+                        lon, 
+                        fonte: fonte || null,
+                        year
+                    });
+                }
+                
+                this._aggiungiPuntoCleanup();
+                this._aggiungiPuntoCleanup = null;
+            });
+            
+            // Handler Annulla
+            popupDiv.querySelector('#popup-annulla-punto').addEventListener('click', () => {
+                this._aggiungiPuntoCleanup();
+                this._aggiungiPuntoCleanup = null;
+            });
+        });
+    }
+
     attivaModalitaCoordinate() {
         if (this.clickHandler) {
             this.map.off('click', this.clickHandler);
@@ -520,6 +683,7 @@ class MapManager {
             { id: 'measure', label: 'Misura Distanza', icon: 'straighten', action: () => this.attivaMisuraDistanza() },
             { id: 'draw-line', label: 'Disegna Linea', icon: 'timeline', action: () => this.attivaDisegnoLinea() },
             { id: 'draw-polygon', label: 'Disegna Area', icon: 'category', action: () => this.attivaDisegnoPoligono() },
+            { id: 'add-point', label: 'Aggiungi punto', icon: 'add_location_alt', action: () => this.toggleAggiungiPuntoUI() },
             { id: 'clear-draw', label: 'Cancella Disegni', icon: 'layers_clear', action: () => this.clearCustomLayers() }
         ];
 
@@ -533,6 +697,7 @@ class MapManager {
                 if (button.classList.contains('active') && tool.id !== 'clear-draw') {
                     button.classList.remove('active');
                     this.disattivaHandlerAttivi();
+                    if (tool.id === 'add-point') this.hideAggiungiPuntoUI();
                     return;
                 }
                 
@@ -545,6 +710,28 @@ class MapManager {
             });
             toolsGroup.appendChild(button);
         });
+
+         // UI espansa per selezione tipo punto
+        this.aggiungiPuntoTypeBar = document.createElement('div');
+        this.aggiungiPuntoTypeBar.className = 'aggiungi-punto-type-bar floating-type-bar';
+        this.aggiungiPuntoTypeBar.style.display = 'none';
+        this.aggiungiPuntoTypeBar.innerHTML = `
+            <button class="map-tool-btn aggiungi-punto-type-btn" data-type="delitto" title="Delitto principale">${MapElementsRenderer.creaMarkerDelitto(false)}</button>
+            <button class="map-tool-btn aggiungi-punto-type-btn" data-type="collaterale" title="Delitto collaterale">${MapElementsRenderer.creaMarkerDelitto(true)}</button>
+            <button class="map-tool-btn aggiungi-punto-type-btn" data-type="poi" title="Punto di interesse">${MapElementsRenderer.creaMarkerPuntoInteresse()}</button>
+            <button class="map-tool-btn aggiungi-punto-type-btn" data-type="abitazioneVittima" title="Abitazione vittima">${MapElementsRenderer.creaMarkerAbitazioneVittima()}</button>
+            <button class="map-tool-btn aggiungi-punto-type-btn" data-type="abitazioneSospettato" title="Abitazione sospettato">${MapElementsRenderer.creaMarkerAbitazioneSospettato()}</button>
+        `;
+        drawControlContainer.appendChild(this.aggiungiPuntoTypeBar);
+
+        // Handler selezione tipo punto
+        this.aggiungiPuntoTypeBar.addEventListener('click', (e) => {
+            const btn = e.target.closest('.aggiungi-punto-type-btn');
+            if (!btn) return;
+            const tipo = btn.getAttribute('data-type');
+            this.onAggiungiPuntoTypeSelected && this.onAggiungiPuntoTypeSelected(tipo);
+        });
+
         this.drawLayer = new L.FeatureGroup().addTo(this.map);
         this.measureLayer = new L.FeatureGroup().addTo(this.map);
     }
@@ -1267,6 +1454,23 @@ class MapManager {
             callback(e);
         };        
         this.map.on('click', this.singleClickHandler);
+    }
+
+    toggleAggiungiPuntoUI() {
+        if (this.aggiungiPuntoTypeBar.style.display === 'none') {
+            this.aggiungiPuntoTypeBar.style.display = 'flex';
+        } else {
+            this.hideAggiungiPuntoUI();
+        }
+    }
+
+    hideAggiungiPuntoUI() {
+        this.aggiungiPuntoTypeBar.style.display = 'none';
+        // Eventuale cleanup di modalità aggiunta punto
+        if (this._aggiungiPuntoCleanup) {
+            this._aggiungiPuntoCleanup();
+            this._aggiungiPuntoCleanup = null;
+        }
     }
 }
 

@@ -93,6 +93,10 @@ class GeoAnalysisApp {
         this.configuraElementiCollassabili();
         this.configuraInclusionePOI();
         this.configuraSwitchCaso();
+
+        this.mapManager.onAggiungiPuntoTypeSelected = (tipo) => {
+            this.mapManager.attivaModalitaAggiungiPunto(tipo);
+        };
     }
 
     configuraCheckboxes() {
@@ -114,10 +118,58 @@ class GeoAnalysisApp {
             console.warn(`[popolaCheckbox] Contenitore checkbox non trovato: ${containerId}`);
             return;
         }
-        container.innerHTML = items.map((item, index) => {
-            const originalItem = rawData[datasetKey] ? rawData[datasetKey].find(rawItem => rawItem.label === item.label) : item;
-            return creaCheckbox(originalItem || item, checked, `${containerId}-${index}`);
-        }).join('');
+
+        let html = '';
+        const groupedItems = {};
+        
+        // Determina quale dizionario di etichette usare in base al caso attivo
+        const groupLabelsDict = window.casoAttivo === 'zodiac' ? 
+                                (window.zodiacGroupLabels || {}) : 
+                                (window.groupLabels || {});
+
+        // Organizza gli elementi per groupId
+        items.forEach(item => {
+            const groupId = item.groupId !== undefined ? String(item.groupId) : '0'; 
+            if (!groupedItems[groupId]) {
+                groupedItems[groupId] = [];
+            }
+            groupedItems[groupId].push(item);
+        });
+
+        const sortedGroupIds = Object.keys(groupedItems).sort((a, b) => {
+            if (a === '0' && b !== '0') return -1;
+            if (b === '0' && a !== '0') return 1;
+            if (a === '0' && b === '0') return 0;
+            return parseInt(a) - parseInt(b);
+        });
+
+        sortedGroupIds.forEach(groupId => {
+            const gruppo = groupedItems[groupId];
+            let groupLabelText = groupLabelsDict[groupId];
+
+            // Fallback per ID di gruppo non presenti nel dizionario (eccetto '0' se la sua etichetta è volutamente vuota)
+            if (groupLabelText === undefined && groupId !== '0') {
+                groupLabelText = `Gruppo ${groupId}`;
+            } else if (groupLabelText === undefined && groupId === '0') {
+                groupLabelText = "";
+            }
+
+            html += `<div class="checkbox-group-item">`;
+
+            if (groupLabelText && groupLabelText.trim() !== '') {
+                const escapedLabel = typeof escapeHtml === 'function' ? escapeHtml(groupLabelText) : groupLabelText;
+                html += `<span class="checkbox-group-label">${escapedLabel}</span>`;
+            }
+
+            gruppo.forEach((item, index) => {
+                const uniqueId = `${containerId}-${groupId.replace(/\s+/g, '_')}-${index}`;
+                html += creaCheckbox(item, checked, uniqueId);
+            });
+
+            html += `</div>`;
+        });
+
+        container.innerHTML = html;
 
         container.querySelectorAll('.checkbox-text-label').forEach(labelElement => {
             labelElement.addEventListener('click', (event) => {
@@ -127,7 +179,9 @@ class GeoAnalysisApp {
                     console.warn("[Label Click] controlDiv non trovato.");
                     return;
                 }
-                const parentCheckboxContainer = controlDiv.parentElement;
+                const parentCheckboxContainer = controlDiv.closest('.checkbox-container'); 
+                if (!parentCheckboxContainer) return;
+
                 const linksContainer = parentCheckboxContainer.querySelector('.checkbox-links-container');
 
                 if (!linksContainer) {
@@ -137,7 +191,9 @@ class GeoAnalysisApp {
 
                 if (linksContainer.classList.contains('expanded')) {
                     linksContainer.classList.remove('expanded');
-                    window._checkboxLinksOpened = null;
+                    if (window._checkboxLinksOpened === linksContainer) {
+                         window._checkboxLinksOpened = null;
+                    }
                 } else {
                     this.chiudiCheckboxLinksAperto();
                     linksContainer.classList.add('expanded');
@@ -169,10 +225,10 @@ class GeoAnalysisApp {
             '#analisi-kde',
             '#analisi-regressione',
             '#analisi-percorso-cronologico',
-            '#mostra-etichette'
+            '#mostra-etichette',
+            '#mostra-numero-delitto'
         ].join(', ');
 
-        // Listener per tutti i controlli specificati
         aggiungiListenerModifica(selettori, e => {
             // Caso specifico per forzare morti collaterali indipendentemente dal filtro temporale
             if (e.target.closest('#omicidi-collaterali-checkbox')) {
@@ -257,79 +313,71 @@ class GeoAnalysisApp {
 
     configuraAggiungiPunto() {
         const btnAggiungi = document.getElementById('aggiungi-punto-btn');
-        const modal = document.getElementById('aggiungi-punto-modal');
-        const inputNome = document.getElementById('nuovo-punto-nome');
-        const inputLat = document.getElementById('nuovo-punto-lat');
-        const inputLon = document.getElementById('nuovo-punto-lon');
-        const btnSalva = document.getElementById('salva-punto-btn');
-        const btnAnnulla = document.getElementById('annulla-punto-btn');
-        const mapContainer = document.getElementById('map-container');
-        const mapElement = document.getElementById('map');
-
-        let nuovoPunto = null;
-        let tempMarker = null;
-
-        const resetUIPuntoInteresse = () => {
-            modal.style.display = 'none';
-            inputNome.value = '';
-            inputLat.value = '';
-            inputLon.value = '';
-            nuovoPunto = null;
-            // Rimuove il marker temporaneo se presente
-            if (tempMarker) {
-                this.mapManager.removeMarker(tempMarker);
-                tempMarker = null;
-            }
-            mapContainer.style.cursor = '';
-        };
-
-        // Handler per la selezione del punto sulla mappa
-        const handleMapClick = (e) => {
-            const lat = e.latlng.lat;
-            const lon = e.latlng.lng;
-            // Aggiorna il form con le coordinate
-            inputLat.value = lat.toFixed(6);
-            inputLon.value = lon.toFixed(6);
-
-            nuovoPunto = { lat, lon };
-            // Aggiunge un marker temporaneo
-            if (tempMarker) {
-                this.mapManager.removeMarker(tempMarker);
-            }
-            tempMarker = this.mapManager.addIcon(lat, lon, {
-                html: MapElementsRenderer.creaMarkerPuntoInteresse(),
-                className: 'temp-marker'
+        if (btnAggiungi) {
+            btnAggiungi.addEventListener('click', () => {
+                this.mapManager.attivaPannelloAggiungiPunto();
             });
-        };
-
-        btnAggiungi.addEventListener('click', () => {
-            modal.style.display = 'block';
-            mapContainer.style.cursor = 'crosshair';
-            this.mapManager.onceClick(handleMapClick);
-        });
-
-        btnAnnulla.addEventListener('click', resetUIPuntoInteresse);
-
-        btnSalva.addEventListener('click', () => {
-            const nome = MapElementsRenderer.escapeHtml(inputNome.value.trim());
-            if (!nome || !nuovoPunto) return;
-            // Converte il punto in UTM e lo aggiunge al dataset dei Punti di Interesse
-            const [x, y] = convertiWGS84toUTM(nuovoPunto.lon, nuovoPunto.lat, this.casoAttivo);
-            const [lonWGS, latWGS] = convertiUTMtoWGS84(x, y, this.casoAttivo);
-
+        }
+        
+        // Configura il callback per quando un punto viene aggiunto tramite MapManager
+        this.mapManager.onPointAdded = (nuovoPunto) => {
+            const { tipo, nome, lat, lon, fonte, year } = nuovoPunto;
+            
+            // Converte il punto in UTM e lo aggiunge al dataset appropriato
+            const [x, y] = convertiWGS84toUTM(lon, lat, this.casoAttivo);
+            
             const nuovo = {
-                ...nuovoPunto,
+                lat, 
+                lon,
                 x,
                 y,
-                label: nome
+                label: nome,
+                fonti: fonte ? [fonte] : undefined,
+                year
             };
-
-            this.datasets.puntiInteresse.push(nuovo);
-
-            const container = document.getElementById('punti-interesse-checkbox');
+            
+            switch(tipo) {
+                case 'delitto':
+                    this.datasets.delitti.push(nuovo);
+                    break;
+                case 'collaterale':
+                    this.datasets.omicidiCollaterali.push(nuovo);
+                    break;
+                case 'poi':
+                    this.datasets.puntiInteresse.push(nuovo);
+                    break;
+                case 'abitazioneVittima':
+                    this.datasets.abitazioniVittime.push(nuovo);
+                    break;
+                case 'abitazioneSospettato':
+                    this.datasets.abitazioniSospettati.push(nuovo);
+                    break;
+            }
+            
+            // Aggiunge il checkbox per il nuovo punto nella UI
+            let containerId;
+            switch(tipo) {
+                case 'delitto':
+                    containerId = 'delitti-checkbox';
+                    break;
+                case 'collaterale':
+                    containerId = 'omicidi-collaterali-checkbox';
+                    break;
+                case 'poi':
+                    containerId = 'punti-interesse-checkbox';
+                    break;
+                case 'abitazioneVittima':
+                    containerId = 'abitazioni-vittime-checkbox';
+                    break;
+                case 'abitazioneSospettato':
+                    containerId = 'abitazioni-sospettati-checkbox';
+                    break;
+            }
+            
+            const container = document.getElementById(containerId);
             if (container) {
-                container.insertAdjacentHTML('beforeend', creaCheckbox(nuovo, true, `pi-${Date.now()}`));
-
+                container.insertAdjacentHTML('beforeend', creaCheckbox(nuovo, true, `${tipo}-${Date.now()}`));
+                
                 const newCheckbox = container.querySelector(`input[data-label="${nome}"]`);
                 if (newCheckbox) {
                     newCheckbox.addEventListener('change', () => {
@@ -337,9 +385,9 @@ class GeoAnalysisApp {
                     });
                 }
             }
-            resetUIPuntoInteresse();
+            
             this.aggiornaVisualizzazione();
-        });
+        };
     }
 
     configuraSliderCPR() {
@@ -613,6 +661,7 @@ class GeoAnalysisApp {
         const mostraVoronoiDelaunay = document.getElementById('analisi-voronoi-delaunay').checked;
         const mostraRegressione = document.getElementById('analisi-regressione')?.checked;
         const mostraPercorsoCronologico = document.getElementById('analisi-percorso-cronologico')?.checked;
+        const mostraNumeroDelitto = document.getElementById('mostra-numero-delitto')?.checked;
         const centers = [];
 
         if (delittiAttivi.length > 0) {
@@ -1343,7 +1392,7 @@ class GeoAnalysisApp {
                 }
             }
         }
-        this.visualizzaPunti(centers, mostraEtichette);
+        this.visualizzaPunti(centers, mostraEtichette, mostraNumeroDelitto);
         this.visualizzaCerchi(centers, puntiUTM);
     }
 
@@ -1521,22 +1570,28 @@ class GeoAnalysisApp {
             this.mapManager.map.setView([43.7696, 11.2558], 10);
         }
     }
-    visualizzaPunti(centers, mostraEtichette = false) {
+    visualizzaPunti(centers, mostraEtichette = false, mostraNumeroDelitto = false) {
         const delittiAttivi = this.getDelittiAttivi();
         const abitazioniSospettati = this.getAbitazioniSospettatiAttivi();
         const abitazioniVittime = this.getAbitazioniVittimeAttivi();
         const puntiInteresse = this.getPuntiInteresseAttivi();
 
-        // Funzione locale per generare i popup
+        // Ordina i delitti per anno crescente (più vecchio = 1)
+        const delittiOrdinati = [...delittiAttivi].sort((a, b) => a.year - b.year);
+        const labelToNumero = new Map();
+        delittiOrdinati.forEach((punto, idx) => {
+            labelToNumero.set(punto.label, idx + 1);
+        });
+
         const generaPopupHtml = (punto, centers) => {
             return MapElementsRenderer.generaPopupHtml(punto, centers, this.casoAttivo);
         };
 
         delittiAttivi.forEach(punto => {
             const isCollaterale = this.datasets.omicidiCollaterali.some(d => d.label === punto.label);
-
+            const numeroDelitto = mostraNumeroDelitto ? labelToNumero.get(punto.label) : undefined;
             this.mapManager.addIcon(punto.lat, punto.lon, {
-                html: MapElementsRenderer.creaMarkerDelitto(isCollaterale),
+                html: MapElementsRenderer.creaMarkerDelitto(isCollaterale, numeroDelitto),
                 popup: generaPopupHtml(punto, centers),
                 tooltip: punto.label,
                 permanentTooltip: mostraEtichette,
@@ -1596,7 +1651,6 @@ class GeoAnalysisApp {
                 default: tipoCentro = 'default';
             }
 
-            // Usa la funzione per ottenere la configurazione del cerchio
             const opacitaCerchio = this.configurazione.opacitaCerchi || 0.15;
             const configCerchio = MapElementsRenderer.getConfigCerchio(tipoCentro, opacitaCerchio);
 

@@ -9,8 +9,6 @@
  */
 
 proj4.defs("EPSG:32632", "+proj=utm +zone=32 +ellps=WGS84 +datum=WGS84 +units=m +no_defs");
-
-// Definizione della proiezione UTM zona 10 (California)
 proj4.defs("EPSG:32610", "+proj=utm +zone=10 +ellps=WGS84 +datum=WGS84 +units=m +no_defs");
 
 // Costanti

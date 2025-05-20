@@ -92,12 +92,19 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const toggleSidebarBtn = document.getElementById('toggle-sidebar');
     const dashboard = document.querySelector('.dashboard');
-    
+    const toggleSidebarIcon = toggleSidebarBtn.querySelector('.material-icons');
+
+    function updateSidebarIcon() {
+        const isCollapsed = dashboard.classList.contains('sidebar-collapsed');
+        toggleSidebarIcon.textContent = isCollapsed ? 'chevron_right' : 'chevron_left';
+    }
+
     function toggleSidebar() {
         dashboard.classList.toggle('sidebar-collapsed');
         
         const isCollapsed = dashboard.classList.contains('sidebar-collapsed');
         localStorage.setItem('sidebarCollapsed', isCollapsed);
+        updateSidebarIcon();
         
         const mapElement = document.getElementById('map');
         const controlsElement = dashboard.querySelector('.controls');
@@ -150,4 +157,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         }, 500); 
     }
+    updateSidebarIcon();
 }); 
+
+function adjustSidebarPadding() {
+  const sidebar = document.querySelector('.controls');
+  if (!sidebar) return;
+  // Calcola se la scrollbar verticale è presente
+  const hasScrollbar = sidebar.scrollHeight > sidebar.clientHeight;
+  sidebar.style.paddingRight = hasScrollbar
+    ? `calc(var(--sp-lg) + 16px)`
+    : `var(--sp-lg)`;
+}
+
+window.addEventListener('resize', adjustSidebarPadding);
+window.addEventListener('DOMContentLoaded', adjustSidebarPadding);
+// Se la sidebar cambia contenuto dinamicamente, puoi richiamare adjustSidebarPadding() dopo l'update. 
