@@ -327,6 +327,9 @@ svg {
 	overflow: hidden;
 	transition: var(--sidebar-transition);
 }
+h2 {
+	font-weight: 500;
+}
 #map {
 	position: absolute;
 	top: 0;
@@ -347,8 +350,10 @@ svg {
 	left: 0;
 	bottom: 0;
 	background: var(--color-white);
-	padding: var(--sp-lg);
+	padding-left: var(--sp-lg);
+	padding-right: var(--sp-lg);
 	overflow-y: auto;
+	scrollbar-gutter: stable;
 	box-shadow: var(--shadow-lg);
 	border-right: var(--border-solid);
 	z-index: 1000;
@@ -364,9 +369,14 @@ svg {
 	display: flex;
 	align-items: center;
 	justify-content: space-between;
-	margin-bottom: var(--sp-sm);
 	padding-bottom: var(--sp-md);
+	padding-top: var(--sp-md);
 	border-bottom: var(--border-light);
+	margin-top: var(--sp-md);
+}
+
+.controls>.sidebar-header:first-of-type {
+	margin-top: 0;
 }
 .controls h2,
 .control-group h3,
@@ -376,7 +386,7 @@ svg {
 	gap: var(--sp-sm);
 }
 .controls h2 {
-	font-size: var(--fs-lg);
+	font-size: var(--fs-md);
 	color: var(--color-heading);
 	margin: 0;
 	white-space: nowrap;
@@ -392,11 +402,10 @@ svg {
 	color: var(--color-neutral);
 	height: var(--sp-xl);
 	width: var(--sp-xl);
-	border-radius: 50%;
 	display: flex;
 	align-items: center;
 	justify-content: center;
-	transition: background-color 0.2s ease, transform 0.3s ease;
+	transition: background-color 0.2s ease;
 }
 .toggle-sidebar-btn:hover {
 	background-color: var(--gray-200);
@@ -404,16 +413,55 @@ svg {
 .toggle-sidebar-btn:active {
 	background-color: var(--gray-300);
 }
-.sidebar-collapsed .toggle-sidebar-btn {
-	transform: rotate(180deg);
+.sidebar-collapsed #toggle-sidebar.toggle-sidebar-btn {
+	left: var(--sidebar-collapsed-width);
+	/* Icon itself should change, e.g. to chevron_right */
 }
-.sidebar-collapsed .controls>*:not(.sidebar-header) {
+
+.sidebar-collapsed .controls>*:not(.sidebar-header):not(#toggle-sidebar) {
 	opacity: 0;
 	visibility: hidden;
 	max-height: 0;
 	margin: 0;
 	pointer-events: none;
 }
+#toggle-sidebar.toggle-sidebar-btn {
+	position: fixed;
+	top: var(--sp-sm);
+	/* Align with sidebar's initial padding */
+	left: var(--sidebar-width);
+	transform: translateX(-60%);
+	width: auto;
+	height: auto;
+	/*padding: var(--sp-sm) var(--sp-md);*/
+	padding-right: var(--sp-md);
+	padding-left: var(--sp-sm);
+	padding-top: var(--sp-sm);
+	padding-bottom: var(--sp-sm);
+	background-color: var(--color-white);
+	color: var(--color-text);
+	border-top: var(--border-solid);
+	border-right: var(--border-solid);
+	border-bottom: var(--border-solid);
+	border-left: none;
+	border-radius: 0 var(--radius-md) var(--radius-md) 0;
+	box-shadow: var(--shadow-sm);
+	z-index: 1050;
+	transition: left 0.3s ease, background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+#toggle-sidebar.toggle-sidebar-btn:hover {
+	background-color: var(--gray-100);
+}
+
+.dark-theme #toggle-sidebar.toggle-sidebar-btn {
+	background-color: var(--gray-200);
+	color: var(--color-text);
+}
+.sidebar-collapsed #toggle-sidebar.toggle-sidebar-btn {
+	left: var(--sidebar-collapsed-width);
+}
+
 .control-group {
 	margin-bottom: var(--sp-md);
 	padding: var(--sp-md) var(--sp-lg);
@@ -461,7 +509,7 @@ input[type="checkbox"] {
 	background: var(--color-white);
 	box-shadow: var(--shadow-sm);
 	overflow: hidden;
-	margin-bottom: var(--sp-md);
+	margin-bottom: 0.75rem;
 	padding: 0;
 }
 .accordion summary,
@@ -722,11 +770,13 @@ input[type="checkbox"] {
 	max-height: 1000px;
 	overflow: hidden;
 	transition: max-height 0.3s ease-in-out;
+	padding: 0;
+	margin: 0;
 }
 .collapsed+.collapsible-content {
 	max-height: 0;
-	padding-top: 0;
-	padding-bottom: 0;
+	padding: 0;
+	margin: 0;
 	overflow: hidden;
 }
 .poi-actions {
@@ -983,7 +1033,7 @@ input[type="checkbox"] {
 	position: relative;
 	right: 0;
 	transition: max-height 0.3s ease, opacity 0.3s ease, padding 0.3s ease, margin 0.3s ease;
-	max-height: 50vh;
+	max-height: 45vh;
 	opacity: 1;
 	z-index: var(--z-index-map-base);
 }
@@ -1642,15 +1692,27 @@ input[type="checkbox"] {
 .dark-theme .checkbox-links-container a {
 	color: var(--color-primary);
 }
+
+/* Questo blocco sostituisce le regole modificate in precedenza in modo errato */
+/* Assicura che i controlli allineati a sinistra siano spostati dalla sidebar */
 .leaflet-top.leaflet-left,
 .leaflet-bottom.leaflet-left {
 	left: calc(var(--sidebar-width) + var(--sp-md));
 	transition: left var(--sidebar-transition) !important;
 }
+
+/* Sposta specificamente il contenitore .leaflet-top.leaflet-left (dove si trova lo zoom di default) in basso */
+.leaflet-top.leaflet-left {
+	top: auto !important;
+	bottom: var(--sp-md) !important;
+}
+
+/* Mantiene l'offset corretto quando la sidebar è collassata */
 .sidebar-collapsed .leaflet-top.leaflet-left,
 .sidebar-collapsed .leaflet-bottom.leaflet-left {
 	left: calc(var(--sidebar-collapsed-width) + var(--sp-md));
 }
+
 .map-panels-container {
 	position: absolute;
 	top: var(--sp-md);
@@ -1658,9 +1720,10 @@ input[type="checkbox"] {
 	z-index: 1000;
 	display: flex;
 	flex-direction: column;
-	gap: var(--sp-lg);
+	gap: var(--sp-md);
 	pointer-events: none;
 }
+
 .map-selector-option {
 	width: 40px;
 	height: 40px;
@@ -1674,9 +1737,11 @@ input[type="checkbox"] {
 	cursor: pointer;
 	transition: all 0.2s;
 }
+
 .map-selector-option>*:not(.material-icons) {
 	display: none;
 }
+
 .map-tools-container,
 .map-selector {
 	z-index: 1000;
@@ -1686,10 +1751,12 @@ input[type="checkbox"] {
 	padding: var(--sp-xs);
 	pointer-events: auto;
 }
+
 .dark-theme .map-tools-container,
 .dark-theme .map-selector {
 	background-color: var(--bg-map-overlay);
 }
+
 #map .map-panels-container,
 #map .map-tools-container,
 #map .map-selector,
@@ -1698,6 +1765,7 @@ input[type="checkbox"] {
 #map .map-selector-option {
 	pointer-events: auto !important;
 }
+
 .analisi-header {
 	display: flex;
 	justify-content: space-between;
@@ -1706,12 +1774,14 @@ input[type="checkbox"] {
 	padding-bottom: var(--sp-xs);
 	border-bottom: var(--border-thin);
 }
+
 .analisi-header h3 {
 	margin: 0;
 	font-size: 14px;
 	font-weight: 600;
 	color: var(--color-text-primary);
 }
+
 .toggle-analisi-btn {
 	display: flex;
 	align-items: center;
@@ -1727,12 +1797,15 @@ input[type="checkbox"] {
 	color: var(--color-text-primary);
 	transition: background-color 0.2s ease;
 }
+
 .toggle-analisi-btn:hover {
 	background-color: var(--gray-100);
 }
+
 .toggle-analisi-btn .material-icons {
 	font-size: 18px;
 }
+
 .expand-analisi-btn {
 	width: 40px;
 	height: 40px;
@@ -1753,20 +1826,25 @@ input[type="checkbox"] {
 	z-index: 1000;
 	color: var(--color-text-primary);
 }
+
 .expand-analisi-btn .material-icons {
 	font-size: 24px;
 }
+
 .expand-analisi-btn:hover {
 	background: var(--gray-100);
 }
+
 .expand-analisi-btn .btn-label {
 	display: none;
 }
+
 .dark-theme .expand-analisi-btn {
 	background-color: var(--gray-200);
 	border-color: var(--gray-400);
 	color: var(--color-text);
 }
+
 .dark-theme .expand-analisi-btn:hover {
 	background-color: var(--gray-300);
 }
@@ -2035,3 +2113,122 @@ input[type="color"]:focus {
 .non-interactive-polygon.leaflet-interactive {
     pointer-events: none !important;
 }
+
+/* Barra delle icone per aggiunta punto (flottante accanto al pulsante) */
+.floating-type-bar {
+	position: absolute;
+	right: 100%;
+	left: auto;
+	top: 69%;
+	transform: translateY(-50%);
+	display: flex;
+	flex-direction: row-reverse;
+	gap: var(--sp-xs);
+	background: var(--color-white);
+	box-shadow: var(--shadow-md);
+	border-radius: var(--radius-md);
+	padding: var(--sp-xs) var(--sp-xs);
+	z-index: 2000;
+	align-items: center;
+	margin-right: var(--sp-xs);
+}
+
+.floating-type-bar .map-tool-btn {
+	min-width: 36px;
+	min-height: 36px;
+	background: none;
+	border: none;
+	box-shadow: none;
+	transition: background 0.2s;
+}
+
+.floating-type-bar .map-tool-btn:hover,
+.floating-type-bar .map-tool-btn:focus {
+	background: var(--gray-200);
+	border-radius: var(--radius-md);
+}
+
+.floating-type-bar .map-marker-icon {
+	font-size: 1.5rem;
+}
+
+/* Numero delitto sopra icona */
+.map-marker-delitto-wrapper {
+  position: relative;
+  display: inline-block;
+}
+.numero-delitto-marker {
+  position: absolute;
+  top: 28px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: none;
+  color: #111;
+  font-size: 13px;
+  font-weight: bold;
+  border-radius: 0;
+  min-width: unset;
+  height: auto;
+  line-height: 1;
+  text-align: center;
+  box-shadow: none;
+  z-index: 1;
+  border: none;
+  pointer-events: none;
+  padding: 0;
+}
+
+/* Stili per i gruppi di checkbox */
+.checkbox-group-item {
+  border: 1px solid var(--color-border-light); /* Bordo leggero */
+  border-radius: var(--radius-md);
+  padding: 0;
+  margin-bottom: var(--sp-xl);
+  background-color: var(--color-background-secondary);
+  position: relative;
+  padding-top: var(--sp-sm);
+}
+
+.checkbox-group-label {
+  position: absolute;
+  top: -0.7em;
+  left: var(--sp-md);
+  font-weight: 500;
+  font-size: var(--fs-xs);
+  background-color: var(--color-background);
+  padding: 0 var(--sp-xs);
+  color: var(--color-text-emphasis);
+  border-radius: var(--radius-sm);
+  line-height: 1.4;
+}
+
+/* Assicurati che i contenitori interni non abbiano margini che disturbano */
+.checkbox-group-item .checkbox-container:last-child {
+  margin-bottom: 0;
+}
+
+/* Stili per i link (se usi la logica da geoAnalysisOLD.js) */
+.checkbox-links-container {
+    display: none; /* Nascosto di default */
+    padding: var(--sp-xs) var(--sp-sm);
+    margin-top: var(--sp-xs);
+    background-color: var(--color-background-tertiary, #f0f0f0);
+    border-radius: var(--radius-sm);
+    font-size: var(--fs-xs);
+}
+
+.checkbox-links-container.expanded {
+    display: block; /* Mostra quando espanso */
+}
+
+.checkbox-links-container a {
+    color: var(--color-primary);
+    text-decoration: underline;
+    display: block;
+    margin-bottom: var(--sp-xxs);
+}
+
+.checkbox-links-container a:hover {
+    color: var(--color-primary-dark);
+}
+

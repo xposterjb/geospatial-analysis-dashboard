@@ -18,17 +18,17 @@
 <body>
   <div class="dashboard">
 
+    <button id="toggle-sidebar" class="toggle-sidebar-btn" aria-label="Collassa barra laterale">
+      <span class="material-icons" aria-hidden="true">chevron_left</span>
+    </button>
+
     <!-- Sidebar -->
     <aside class="controls" aria-label="Filtri mappa">
-
       <div class="sidebar-header">
         <h2>
           <span class="material-icons" aria-hidden="true">tune</span>
           Filtri
         </h2>
-        <button id="toggle-sidebar" class="toggle-sidebar-btn" aria-label="Collassa barra laterale">
-          <span class="material-icons" aria-hidden="true">chevron_left</span>
-        </button>
       </div>
 
       <!-- Pulsanti Selezione Caso -->
@@ -36,6 +36,24 @@
         <button id="select-case-mdf" class="btn btn-case-selector active" data-case="mdf"><span>MdF</span></button>
         <button id="select-case-zodiac" class="btn btn-case-selector" data-case="zodiac"><span>Zodiac</span></button>
       </div>
+
+      <!-- Timeline -->
+      <details class="control-group accordion" aria-label="Filtro Timeline">
+        <summary>
+          <span class="material-icons" aria-hidden="true">timeline</span>
+          Timeline: <span id="anno-corrente" aria-live="polite">1985</span>
+        </summary>
+        <div class="slider-container">
+          <label for="anno-slider" class="timeline-title">Filtra per anno</label>
+          <p class="timeline-description">Mostra solo gli eventi avvenuti fino all'anno selezionato.</p>
+          <div class="slider-label">
+            <span id="min-anno">1962</span>
+            <input type="range" id="anno-slider" min="1962" max="2025" value="1985" aria-valuemin="1962"
+              aria-valuemax="2025" aria-valuenow="1985" />
+            <span id="max-anno">2025</span>
+          </div>
+        </div>
+      </details>
 
       <!-- Delitti -->
       <details class="control-group accordion" aria-label="Filtri Delitti MdF">
@@ -102,23 +120,13 @@
         <div id="punti-interesse-checkbox" role="group" aria-label="Lista Punti di Interesse"></div>
       </details>
 
-      <!-- Timeline -->
-      <details class="control-group accordion" aria-label="Filtro Timeline">
-        <summary>
-          <span class="material-icons" aria-hidden="true">timeline</span>
-          Timeline: <span id="anno-corrente" aria-live="polite">1985</span>
-        </summary>
-        <div class="slider-container">
-          <label for="anno-slider" class="timeline-title">Filtra per anno</label>
-          <p class="timeline-description">Mostra solo gli eventi avvenuti fino all'anno selezionato.</p>
-          <div class="slider-label">
-            <span id="min-anno">1968</span>
-            <input type="range" id="anno-slider" min="1968" max="2005" value="1985" aria-valuemin="1968"
-              aria-valuemax="2005" aria-valuenow="1985" />
-            <span id="max-anno">2025</span>
-          </div>
-        </div>
-      </details>
+      <!-- Sezione Tipo di Analisi -->
+      <div class="sidebar-header">
+        <h2>
+          <span class="material-icons" aria-hidden="true">public</span>
+          Analisi Geospaziale
+        </h2>
+      </div>
 
       <!-- Tipo analisi -->
       <details class="control-group accordion" aria-label="Selezione tipo di analisi">
@@ -160,7 +168,7 @@
             title="Stima la probabile zona di residenza del colpevole pesando i punti in base a distanza, tempo e tipologia.">
             <input type="checkbox" id="analisi-cpr" />
             Centro di Probabile Residenza
-          </label>          
+          </label>
           <label title="Calcola la distanza media tra tutte le coppie di punti.">
             <input type="checkbox" id="analisi-mid" />
             Mean Interpoint Distance (MID)
@@ -180,14 +188,22 @@
           <label title="Calcola il baricentro delle intersezioni tra i poligoni di Voronoi e Delaunay.">
             <input type="checkbox" id="analisi-voronoi-delaunay" />
             Baricentro intersezioni Voronoi e Delaunay
-          </label>          
+          </label>
         </div>
       </details>
+
+      <!-- Sezione Impostazioni -->
+      <div class="sidebar-header">
+        <h2>
+          <span class="material-icons" aria-hidden="true">settings</span>
+          Impostazioni
+        </h2>
+      </div>
 
       <!-- Etichette -->
       <details class="control-group accordion" aria-label="Preferenze Applicazione">
         <summary>
-          <span class="material-icons" aria-hidden="true">tune</span> Preferenze
+          <span class="material-icons" aria-hidden="true">settings_suggest</span> Preferenze
         </summary>
         <div class="preferenze-container tema-switch-container">
           <div class="switch-item">
@@ -205,6 +221,17 @@
             <div class="switch-wrapper">
               <label class="switch">
                 <input type="checkbox" id="mostra-etichette" aria-label="Mostra tutte le etichette">
+                <span class="slider round"></span>
+              </label>
+            </div>
+          </div>
+
+          <div class="switch-item">
+            <label for="mostra-numero-delitto" class="config-label-title">Mostra numero delitto</label>
+            <div class="switch-wrapper">
+              <label class="switch">
+                <input type="checkbox" id="mostra-numero-delitto"
+                  aria-label="Mostra numero cronologico delitto sull'icona">
                 <span class="slider round"></span>
               </label>
             </div>
@@ -245,15 +272,13 @@
               </div>
             </div>
           </div>
-
-
         </div>
       </details>
 
       <!-- Configurazione CPR -->
       <details class="control-group accordion" aria-label="Configurazione Parametri CPR">
         <summary>
-          <span class="material-icons" aria-hidden="true">settings</span> Configurazione CPR
+          <span class="material-icons" aria-hidden="true">tune</span> Configurazione CPR
         </summary>
         <div id="config-sliders-container" role="group">
           <div class="slider-container">
@@ -356,186 +381,157 @@
         </div>
       </details>
 
-      <!-- Aggiungi punto di interesse -->
-      <section class="control-group accordion poi-card" aria-label="Aggiungi nuovo punto di interesse">
-        <div class="section-header">
-          <span class="material-icons" aria-hidden="true">add_location_alt</span>
-          Nuovo Punto di Interesse
-        </div>
-        <div class="poi-form">
-          <button id="aggiungi-punto-btn" class="btn btn-primary" type="button">
-            <span class="material-icons white-icon" aria-hidden="true">gps_fixed</span>
-            Seleziona posizione
-          </button>
-          <div id="aggiungi-info" class="poi-info" hidden>
-            <p class="poi-hint">
-              <span class="material-icons" aria-hidden="true">info</span>
-              Clicca sulla mappa per selezionare il punto.
-            </p>
-            <input type="text" id="nome-punto" class="poi-input" placeholder="Nome del punto" hidden
-              aria-label="Nome del punto di interesse" />
-            <div class="poi-actions">
-              <button id="salva-punto-btn" class="btn btn-secondary" type="button">
-                <span class="material-icons" aria-hidden="true">check</span>
-                Salva
-              </button>
-              <button id="annulla-punto-btn" class="btn btn-danger" type="button">
-                <span class="material-icons" aria-hidden="true">close</span>
-                Annulla
-              </button>
-            </div>
-          </div>
-        </div>
-      </section>
-
       <!-- Legenda -->
-      <section class="control-group accordion legend">
-        <div class="section-header collapsible">
+      <details class="control-group accordion" aria-label="Legenda">
+        <summary>
           <span class="material-icons" aria-hidden="true">menu</span>
           Legenda
-          <span class="collapse-icon material-icons" aria-hidden="true">expand_less</span>
+        </summary>
+        <div>
+          <ul class="collapsible-content" role="list">
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <span class="material-icons" style="color: var(--color-danger);" aria-hidden="true">warning</span>
+              </div>
+              Delitto Principale
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <span class="material-icons" style="color: var(--color-warning);" aria-hidden="true">warning</span>
+              </div>
+              Morte Collaterale
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <span class="material-icons" style="color: var(--color-neutral);" aria-hidden="true">home</span>
+              </div>
+              Abitazione Sospettato
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <span class="material-icons" style="color: var(--color-bordeaux);" aria-hidden="true">home</span>
+              </div>
+              Abitazione Vittima
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <span class="material-icons" style="color: var(--color-primary);" aria-hidden="true">location_on</span>
+              </div>
+              Punto di Interesse
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker special"
+                  style="background: var(--bg-success); border: 2px solid var(--color-success); color: var(--color-success);">
+                  B</div>
+              </div>
+              Baricentro
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker special"
+                  style="background: var(--bg-danger); border: 2px solid var(--color-danger); color: var(--color-danger);">
+                  M</div>
+              </div>
+              Mediana
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker special"
+                  style="background: var(--bg-purple-light); border: 2px solid var(--color-purple); color: var(--color-purple);">
+                  F</div>
+              </div>
+              Centro di Minima Distanza
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker special"
+                  style="background: var(--bg-accent); border: 2px solid var(--color-accent); color: var(--color-accent);">
+                  C</div>
+              </div>
+              Centro del Cerchio di Canter
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker canter-circle"></div>
+              </div>
+              Cerchio di Canter
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker special"
+                  style="background: var(--bg-muted); border: 2px solid var(--color-neutral); color: var(--color-neutral); font-size: 8px;">
+                  CPR</div>
+              </div>
+              Centro Probabile Residenza
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <svg width="20" height="20" class="legend-convex-hull" aria-hidden="true">
+                  <polygon points="2,2 18,2 18,18 2,18" fill="none" stroke="currentColor" stroke-width="2" />
+                </svg>
+              </div>
+              Convex Hull (CHP)
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker mid-circle"></div>
+              </div>
+              Area MID
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker special"
+                  style="background: var(--bg-purple-light); border: 2px solid var(--color-purple); color: var(--color-purple); font-size: 8px;">
+                  NNI</div>
+              </div>
+              Nearest Neighbour Index
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <svg width="20" height="20" aria-hidden="true">
+                  <line x1="0" y1="10" x2="20" y2="10" stroke="var(--color-danger)" stroke-width="2" />
+                </svg>
+              </div>
+              Retta di Regressione
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <svg width="20" height="20" aria-hidden="true">
+                  <polyline points="2,18 7,5 13,15 18,2" fill="none" stroke="var(--color-secondary)" stroke-width="2"
+                    stroke-dasharray="2,1" />
+                </svg>
+              </div>
+              Percorso Cronologico
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <svg width="20" height="20" class="legend-voronoi" aria-hidden="true">
+                  <path d="M0,0 L20,0 L10,20 Z" fill="none" stroke="var(--color-primary-dark)" stroke-width="1"
+                    opacity="0.7" />
+                </svg>
+              </div>
+              Poligoni di Voronoi
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <svg width="20" height="20" class="legend-delaunay" aria-hidden="true">
+                  <path d="M2,2 L18,2 L10,18 Z" fill="none" stroke="var(--color-danger)" stroke-width="1" />
+                </svg>
+              </div>
+              Triangolazione Delaunay
+            </li>
+            <li class="legend-item">
+              <div class="legend-icon-wrapper">
+                <div class="legend-marker special"
+                  style="background: var(--bg-muted); border: 2px solid var(--color-bordeaux); color: var(--color-bordeaux); font-size: 8px;">
+                  VD</div>
+              </div>
+              Baricentro Voronoi-Delaunay
+            </li>
+          </ul>
         </div>
-        <ul class="collapsible-content" role="list">
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <span class="material-icons" style="color: var(--color-danger);" aria-hidden="true">warning</span>
-            </div>
-            Delitto Principale
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <span class="material-icons" style="color: var(--color-warning);" aria-hidden="true">warning</span>
-            </div>
-            Morte Collaterale
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <span class="material-icons" style="color: var(--color-neutral);" aria-hidden="true">home</span>
-            </div>
-            Abitazione Sospettato
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <span class="material-icons" style="color: var(--color-bordeaux);" aria-hidden="true">home</span>
-            </div>
-            Abitazione Vittima
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <span class="material-icons" style="color: var(--color-primary);" aria-hidden="true">location_on</span>
-            </div>
-            Punto di Interesse
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <div class="legend-marker special"
-                style="background: var(--bg-success); border: 2px solid var(--color-success); color: var(--color-success);">
-                B</div>
-            </div>
-            Baricentro
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <div class="legend-marker special"
-                style="background: var(--bg-danger); border: 2px solid var(--color-danger); color: var(--color-danger);">
-                M</div>
-            </div>
-            Mediana
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <div class="legend-marker special"
-                style="background: var(--bg-purple-light); border: 2px solid var(--color-purple); color: var(--color-purple);">
-                F</div>
-            </div>
-            Centro di Minima Distanza
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <div class="legend-marker special"
-                style="background: var(--bg-accent); border: 2px solid var(--color-accent); color: var(--color-accent);">
-                C</div>
-            </div>
-            Centro del Cerchio di Canter
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <div class="legend-marker canter-circle"></div>
-            </div>
-            Cerchio di Canter
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <div class="legend-marker special"
-                style="background: var(--bg-muted); border: 2px solid var(--color-neutral); color: var(--color-neutral); font-size: 8px;">
-                CPR</div>
-            </div>
-            Centro Probabile Residenza
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <svg width="20" height="20" class="legend-convex-hull" aria-hidden="true">
-                <polygon points="2,2 18,2 18,18 2,18" fill="none" stroke="currentColor" stroke-width="2" />
-              </svg>
-            </div>
-            Convex Hull (CHP)
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <div class="legend-marker mid-circle"></div>
-            </div>
-            Area MID
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <div class="legend-marker special"
-                style="background: var(--bg-purple-light); border: 2px solid var(--color-purple); color: var(--color-purple); font-size: 8px;">
-                NNI</div>
-            </div>
-            Nearest Neighbour Index
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <svg width="20" height="20" aria-hidden="true">
-                <line x1="0" y1="10" x2="20" y2="10" stroke="var(--color-danger)" stroke-width="2"/>
-              </svg>
-            </div>
-            Retta di Regressione
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <svg width="20" height="20" aria-hidden="true">
-                <polyline points="2,18 7,5 13,15 18,2" fill="none" stroke="var(--color-secondary)" stroke-width="2" stroke-dasharray="2,1" />
-              </svg>
-            </div>
-            Percorso Cronologico
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <svg width="20" height="20" class="legend-voronoi" aria-hidden="true">
-                <path d="M0,0 L20,0 L10,20 Z" fill="none" stroke="var(--color-primary-dark)" stroke-width="1" opacity="0.7" />
-              </svg>
-            </div>
-            Poligoni di Voronoi
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <svg width="20" height="20" class="legend-delaunay" aria-hidden="true">
-                <path d="M2,2 L18,2 L10,18 Z" fill="none" stroke="var(--color-danger)" stroke-width="1" />
-              </svg>
-            </div>
-            Triangolazione Delaunay
-          </li>
-          <li class="legend-item">
-            <div class="legend-icon-wrapper">
-              <div class="legend-marker special"
-                style="background: var(--bg-muted); border: 2px solid var(--color-bordeaux); color: var(--color-bordeaux); font-size: 8px;">
-                VD</div>
-            </div>
-            Baricentro Voronoi-Delaunay
-          </li>
-        </ul>
-      </section>
+      </details>
     </aside>
     <main id="map" tabindex="0" role="application" aria-label="Mappa interattiva"></main>
   </div>
@@ -557,5 +553,4 @@
   <script src="js/geoAnalysis.js"></script>
   <script src="js/tema.js"></script>
 </body>
-
 </html>
