@@ -68,7 +68,6 @@ class GestoreTema {
                     el.setAttribute('stroke', 'currentColor');
                 });
                 
-                // Forza un aggiornamento completo della visualizzazione
                 if (window.geoAnalisi.mapManager.clear) {
                     window.geoAnalisi.mapManager.clear();
                 }
@@ -76,14 +75,13 @@ class GestoreTema {
                 const temaAttuale = document.documentElement.getAttribute('data-theme');                
                 map.invalidateSize();
                 
-                // Aggiungiamo un ulteriore timeout per assicurarci che il DOM sia completamente aggiornato
                 setTimeout(() => {
                     if (window.geoAnalisi.aggiornaVisualizzazione) {
                         window.geoAnalisi.aggiornaVisualizzazione();
                     }
                 }, 150);
             }
-        }, 200); // Aumentiamo il timeout iniziale
+        }, 200);
     }
 }
 
@@ -110,10 +108,9 @@ document.addEventListener('DOMContentLoaded', () => {
         const controlsElement = dashboard.querySelector('.controls');
 
         let transitionEventsFired = 0;
-        const expectedTransitions = 2; // Una per la mappa (left) e una per la sidebar (width)
+        const expectedTransitions = 2;
 
         const invalidateMapOnTransitionEnd = (event) => {
-            // Controlla se la transizione è su un elemento e proprietà attesi
             const isMapTransition = event.target === mapElement && event.propertyName === 'left';
             const isControlsTransition = event.target === controlsElement && event.propertyName === 'width';
 
@@ -121,12 +118,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 transitionEventsFired++;
             }
 
-            // Invalida solo dopo che entrambe le transizioni rilevanti sono terminate
             if (transitionEventsFired >= expectedTransitions) {
                 if (window.geoAnalisi && window.geoAnalisi.mapManager && window.geoAnalisi.mapManager.map) {
                     window.geoAnalisi.mapManager.map.invalidateSize({ debounceMoveend: true });
                 }
-                // Rimuovi i listener
                 if (mapElement) mapElement.removeEventListener('transitionend', invalidateMapOnTransitionEnd);
                 if (controlsElement) controlsElement.removeEventListener('transitionend', invalidateMapOnTransitionEnd);
             }
@@ -135,15 +130,13 @@ document.addEventListener('DOMContentLoaded', () => {
         if (mapElement) mapElement.addEventListener('transitionend', invalidateMapOnTransitionEnd);
         if (controlsElement) controlsElement.addEventListener('transitionend', invalidateMapOnTransitionEnd);
 
-        // Fallback con setTimeout nel caso transitionend non scatti per tutti gli elementi attesi
         setTimeout(() => {
             if (window.geoAnalisi && window.geoAnalisi.mapManager && window.geoAnalisi.mapManager.map) {
                 window.geoAnalisi.mapManager.map.invalidateSize({ debounceMoveend: true });
             }
-             // Assicura la rimozione dei listener anche nel fallback se non sono scattati
             if (mapElement) mapElement.removeEventListener('transitionend', invalidateMapOnTransitionEnd);
             if (controlsElement) controlsElement.removeEventListener('transitionend', invalidateMapOnTransitionEnd);
-        }, 350); // Leggermente più lungo della transizione CSS (0.3s)
+        }, 350);
     }
     
     toggleSidebarBtn.addEventListener('click', toggleSidebar);
@@ -163,7 +156,6 @@ document.addEventListener('DOMContentLoaded', () => {
 function adjustSidebarPadding() {
   const sidebar = document.querySelector('.controls');
   if (!sidebar) return;
-  // Calcola se la scrollbar verticale è presente
   const hasScrollbar = sidebar.scrollHeight > sidebar.clientHeight;
   sidebar.style.paddingRight = hasScrollbar
     ? `calc(var(--sp-lg) + 16px)`
@@ -172,4 +164,3 @@ function adjustSidebarPadding() {
 
 window.addEventListener('resize', adjustSidebarPadding);
 window.addEventListener('DOMContentLoaded', adjustSidebarPadding);
-// Se la sidebar cambia contenuto dinamicamente, puoi richiamare adjustSidebarPadding() dopo l'update. 

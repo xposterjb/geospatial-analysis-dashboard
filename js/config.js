@@ -13,9 +13,10 @@ proj4.defs("EPSG:32610", "+proj=utm +zone=10 +ellps=WGS84 +datum=WGS84 +units=m 
 
 // Costanti
 window.SQRT_EPSILON = 1e-8;
-window.COLLINEARITY_THRESHOLD = 1e6;
+window.COLLINEARITY_THRESHOLD = 1e6;  // Soglia per determinare se i punti sono collineari
 window.MAX_ITERATIONS = 100;
 window.POSITION_TOLERANCE = 1e-8;
+window.DEBUG_CHP = true;  // Abilita/disabilita i messaggi di debug per il Convex Hull
 // Costanti per lo slider temporale
 window.ANNO_MIN_SLIDER       = 1968;
 window.ANNO_MAX_SLIDER       = 2025;

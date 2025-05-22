@@ -674,17 +674,15 @@ window.convertiInUTM = data => data.map(puntoRaw => {
     const label = puntoRaw[2];
     const desc = puntoRaw[3];
     
-    // Gli elementi rimanenti possono essere link o un groupId numerico alla fine
     const rest = puntoRaw.slice(4);
     
     let groupId = 0;
     const fonti = [];
     
     if (rest.length > 0 && typeof rest[rest.length - 1] === 'number') {
-        groupId = rest.pop(); // Estrai e rimuovi groupId da 'rest'
+        groupId = rest.pop();
     }
     
-    // Tutti gli elementi rimanenti in 'rest' sono considerati fonti/link
     rest.forEach(link => {
         if (link && ((typeof link === 'string' && link.startsWith('http')) || (typeof link === 'object' && link.url))) {
             fonti.push(link);

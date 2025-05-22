@@ -55,6 +55,15 @@ class GeoAnalysisApp {
         this.inizializzaControlliCheckboxLinks();
         this.inizializzaControlli();
         this.aggiornaVisualizzazione();
+        this.avviaTutorial();
+    }
+
+    avviaTutorial() {
+        if (typeof Tutoriale !== 'undefined') {
+            Tutoriale.avviaTutorialDefault();
+        } else {
+            console.error("Classe Tutoriale non definita. Assicurati che tutorial.js sia caricato correttamente.");
+        }
     }
 
     chiudiCheckboxLinksAperto() {
@@ -95,7 +104,13 @@ class GeoAnalysisApp {
         this.configuraSwitchCaso();
 
         this.mapManager.onAggiungiPuntoTypeSelected = (tipo) => {
-            this.mapManager.attivaModalitaAggiungiPunto(tipo);
+            if (tipo === 'kml') {
+                this.mapManager.attivaModalitaImportaKML();
+            } else if (tipo === 'delete-user-points') {
+                this.resetPuntiUtente();
+            } else {
+                this.mapManager.attivaModalitaAggiungiPunto(tipo);
+            }
         };
     }
 
@@ -127,7 +142,6 @@ class GeoAnalysisApp {
                                 (window.zodiacGroupLabels || {}) : 
                                 (window.groupLabels || {});
 
-        // Organizza gli elementi per groupId
         items.forEach(item => {
             const groupId = item.groupId !== undefined ? String(item.groupId) : '0'; 
             if (!groupedItems[groupId]) {
@@ -321,9 +335,7 @@ class GeoAnalysisApp {
         
         // Configura il callback per quando un punto viene aggiunto tramite MapManager
         this.mapManager.onPointAdded = (nuovoPunto) => {
-            const { tipo, nome, lat, lon, fonte, year } = nuovoPunto;
-            
-            // Converte il punto in UTM e lo aggiunge al dataset appropriato
+            const { tipo, nome, lat, lon, fonte, year, groupId } = nuovoPunto;            
             const [x, y] = convertiWGS84toUTM(lon, lat, this.casoAttivo);
             
             const nuovo = {
@@ -333,26 +345,34 @@ class GeoAnalysisApp {
                 y,
                 label: nome,
                 fonti: fonte ? [fonte] : undefined,
-                year
+                year,
+                groupId: groupId !== undefined ? groupId : null,
+                userPoint: true
             };
+            
+            let tipoDataset = '';
             
             switch(tipo) {
                 case 'delitto':
-                    this.datasets.delitti.push(nuovo);
+                    tipoDataset = 'delitti';
                     break;
                 case 'collaterale':
-                    this.datasets.omicidiCollaterali.push(nuovo);
+                    tipoDataset = 'omicidiCollaterali';
                     break;
                 case 'poi':
-                    this.datasets.puntiInteresse.push(nuovo);
+                    tipoDataset = 'puntiInteresse';
                     break;
                 case 'abitazioneVittima':
-                    this.datasets.abitazioniVittime.push(nuovo);
+                    tipoDataset = 'abitazioniVittime';
                     break;
                 case 'abitazioneSospettato':
-                    this.datasets.abitazioniSospettati.push(nuovo);
+                    tipoDataset = 'abitazioniSospettati';
                     break;
             }
+            
+            this.datasets[tipoDataset].push(nuovo);
+            
+            this.salvaPuntoUtente(tipo, nuovo);
             
             // Aggiunge il checkbox per il nuovo punto nella UI
             let containerId;
@@ -489,7 +509,6 @@ class GeoAnalysisApp {
         this.mapManager.addLegend(legendaHTML, { position: 'bottomright' });
         this.infoboxContent = document.querySelector('.map-legend-unified .legend-content');
 
-        // Aggiungi il pulsante che appare quando il pannello è collassato
         const infoboxContainer = document.querySelector('.map-legend-unified').parentNode;
         const expandBtnHTML = `
             <button class="expand-analisi-btn" aria-label="Apri pannello analisi" style="display: none;">
@@ -498,7 +517,6 @@ class GeoAnalysisApp {
         `;
         infoboxContainer.insertAdjacentHTML('beforeend', expandBtnHTML);
 
-        // Aggiungi i listener per i pulsanti di chiusura/apertura
         const toggleBtn = document.querySelector('.toggle-analisi-btn');
         const expandBtn = document.querySelector('.expand-analisi-btn');
         const infobox = document.querySelector('.map-legend-unified');
@@ -555,19 +573,35 @@ class GeoAnalysisApp {
 
     // Metodo helper per recuperare elementi attivi da un dataset in base allo stato dei checkbox
     getCheckboxSelezionati(dataset, selector) {
-        return Array.from(document.querySelectorAll(selector + ' input:checked'))
-            .map(el => dataset.find(d => d.label === el.dataset.label))
-            .filter(Boolean);
+        const checkboxes = Array.from(document.querySelectorAll(selector + ' input:checked'));        
+        const labelSelezionate = new Set(checkboxes.map(cb => cb.dataset.label));        
+        let puntiSelezionati = [];        
+        dataset.forEach(punto => {
+            if (punto.userPoint === true || labelSelezionate.has(punto.label)) {
+                puntiSelezionati.push(punto);
+            }
+        });
+        
+        return puntiSelezionati;
     }
 
     getDelittiAttivi() {
         const originali = this.getCheckboxSelezionati(this.datasets.delitti, '#delitti-checkbox');
         const collaterali = this.getCheckboxSelezionati(this.datasets.omicidiCollaterali, '#omicidi-collaterali-checkbox');
+        
+        const puntiUtenteOriginali = this.datasets.delitti.filter(d => d.userPoint === true);
+        const puntiUtenteCollaterali = this.datasets.omicidiCollaterali.filter(d => d.userPoint === true);
+        
+        const puntiUtente = [...originali, ...collaterali].filter(d => d.userPoint === true);
 
         const annoCorrente = parseInt(document.getElementById('anno-slider').value, 10);
         document.getElementById('anno-corrente').textContent = annoCorrente;
-        // Filtra per l'anno corrente dello slider
-        return [...originali, ...collaterali].filter(d => d.year <= annoCorrente);
+        
+        let puntiAttivi = [...originali, ...collaterali].filter(d => {
+            return d.userPoint === true || d.year <= annoCorrente;
+        });
+        
+        return puntiAttivi;
     }
     getAbitazioniSospettatiAttivi() {
         return this.getCheckboxSelezionati(this.datasets.abitazioniSospettati, '#abitazioni-sospettati-checkbox');
@@ -777,12 +811,16 @@ class GeoAnalysisApp {
                                 [lat3, lon3],
                                 [lat1, lon1]
                             ];
-                            this.mapManager.addPolygon(latlngs, {
-                                color: getCSSVar('--color-danger'),
-                                weight: getCSSVar('--line-draw-weight-lg'),
-                                opacity: 0.8,
-                                fillOpacity: 0.1
-                            });
+                            try {
+                                this.mapManager.addPolygon(latlngs, {
+                                    color: getCSSVar('--color-danger'),
+                                    weight: getCSSVar('--line-draw-weight-lg'),
+                                    opacity: 0.8,
+                                    fillOpacity: 0.1
+                                });
+                            } catch (error) {
+                                console.error("[DEBUG-DELAUNAY] Errore nell'aggiunta del triangolo:", error);
+                            }
                         });
 
                         const iconaHtmlDelaunay = `
@@ -841,11 +879,8 @@ class GeoAnalysisApp {
                             iconAnchor: [dimensioneEffettivaIconaVD / 2, dimensioneEffettivaIconaVD / 2],
                             className: 'centro-geometrico-icon'
                         });
-
                         // trova il punto di intersezione più vicino al baricentro
                         const raggioMinimo = algoritmiGeometrici.calcolaRaggioMinimo(intersezioni, baricentro);
-
-                        // disegna il cerchio di raggio minimo
                         this.mapManager.addCircle(latBaricentro, lonBaricentro, raggioMinimo, {
                             color: getCSSVar('--color-bordeaux'),
                             fillColor: getCSSVar('--color-bordeaux'),
@@ -1008,24 +1043,54 @@ class GeoAnalysisApp {
 
             // Convex Hull
             if (mostraCHP && delittiAttivi.length >= 3) {
-                const { puntiCalcolo: puntiCHPCalcolo, puntiExtra: puntiCHPExtra } = this.otteniPuntiExtra(puntiUTM);
+                const { puntiCalcolo: puntiCHPCalcolo, puntiExtra: puntiCHPExtra } = this.otteniPuntiExtra(puntiUTM);                
+                // Debug punti duplicati o problematici
+                const mappaCoordinate = new Map();
+                let puntiDuplicati = 0;
+                
+                puntiCHPCalcolo.forEach((p, idx) => {
+                    const chiave = `${p.x.toFixed(2)},${p.y.toFixed(2)}`;
+                    if (mappaCoordinate.has(chiave)) {
+                        console.warn(`[DEBUG-CHP-UI] Punto duplicato trovato al n.${idx}, chiave ${chiave}`);
+                        puntiDuplicati++;
+                    }
+                    mappaCoordinate.set(chiave, true);
+                    
+                    if (!isFinite(p.x) || !isFinite(p.y)) {
+                        console.error(`[DEBUG-CHP-UI] Punto con coordinate non valide al n.${idx}:`, p);
+                    }
+                });
+                
+                if (puntiDuplicati > 0) {
+                    console.warn(`[DEBUG-CHP-UI] Trovati ${puntiDuplicati} punti duplicati su ${puntiCHPCalcolo.length} totali`);
+                }
+                
                 const riepilogoPuntiCHP = this.generaRiepilogoPunti(puntiUTM, puntiCHPExtra);
 
                 try {
                     const { punti: hull, area, perimetro } = algoritmiGeometrici.convexHull(puntiCHPCalcolo);
+                    
+                    if (!hull || hull.length === 0) {
+                        console.error("[DEBUG-CHP-UI] La funzione convexHull ha restituito un hull vuoto");
+                        return;
+                    }
 
                     const latlngs = hull.map(({ x, y }) => {
                         const [lon, lat] = convertiUTMtoWGS84(x, y, this.casoAttivo);
                         return [lat, lon];
-                    });
-
-                    this.mapManager.addPolygon(latlngs, {
-                        color: 'black',
-                        weight: getCSSVar('--line-draw-weight-lg'),
-                        fillOpacity: 0.1,
-                        opacity: 0.8,
-                        popup: `Convex Hull (${hull.length} vertici)<br><em>${riepilogoPuntiCHP}</em>`
-                    });
+                    });                    
+                    
+                    try {
+                        this.mapManager.addPolygon(latlngs, {
+                            color: 'black',
+                            weight: getCSSVar('--line-draw-weight-lg'),
+                            fillOpacity: 0.1,
+                            opacity: 0.8,
+                            popup: `Convex Hull (${hull.length} vertici)<br><em>${riepilogoPuntiCHP}</em>`
+                        });
+                    } catch (error) {
+                        console.error("[DEBUG-CHP-UI] Errore nell'aggiunta del poligono:", error);
+                    }
 
                     const iconaHtmlCHP = `
                         <div style="
@@ -1163,7 +1228,7 @@ class GeoAnalysisApp {
                     { value: 0.5, color: 'rgba(255, 100, 0, 0.9)', label: 'Cluster Moderato' },
                     { value: 1.0, color: 'rgba(0, 255, 0, 0.9)', label: 'Distribuzione Casuale' },
                     { value: 1.5, color: 'rgba(0, 100, 255, 0.9)', label: 'Dispersione Moderata' },
-                    { value: 2.0, color: 'rgba(0, 0, 255, 0.9)', label: 'Dispersione Forte' }
+                    { value: 2.5, color: 'rgba(0, 0, 200, 0.9)', label: 'Dispersione Forte' } // Modificato value a 2.5 e colore
                 ];
 
                 const gradientCSS = gradientStops.map(stop => `${stop.color} ${(stop.value / 2.5) * 100}%`).join(', ');
@@ -1183,13 +1248,12 @@ class GeoAnalysisApp {
                     <p class="punti-riepilogo">${riepilogoPuntiNNI}</p>
                     <div class="nni-bar-container">
                         <div class="nni-gradient-bar" style="--gradient-bg: linear-gradient(to bottom, ${gradientCSS});">
-                            <div class="nni-value-indicator" style="--indicator-top: ${100 - indicatorPosition}%;"></div>
+                            <div class="nni-value-indicator" style="--indicator-top: ${indicatorPosition}%;"></div>
                         </div>
                         <table class="nni-table">
                             ${gradientStops.map(stop => `
                             <tr class="${Math.abs(stop.value - risultatoNNI.indice) < 0.25 ? 'highlight' : ''}">
                                 <td class="nni-table-cell">${stop.label}</td>
-                                <td class="nni-table-cell">${stop.value.toFixed(1)}</td>
                             </tr>
                             `).join('')}
                         </table>
@@ -1232,7 +1296,7 @@ class GeoAnalysisApp {
                 if (risultatoReg && !isNaN(risultatoReg.m)) { // Controlla se il risultato è valido
                     const { minX, minY, maxX, maxY } = algoritmiGeometrici.trovaEstremi(puntiRegCalcolo);
 
-                    // Fattore di estensione: 15% in più su entrambi i lati
+                    // Fattore di estensione: 20% in più su entrambi i lati
                     const estensione = 0.2;
                     const lunghezzaX = maxX - minX;
 
@@ -1289,7 +1353,6 @@ class GeoAnalysisApp {
                     const xMedio = (x1 + x2) / 2;
                     const yMedio = risultatoReg.m * xMedio + risultatoReg.q;
                     const [lonMedio, latMedio] = convertiUTMtoWGS84(xMedio, yMedio, this.casoAttivo);
-                    // Aggiunge un marker con R²
                     const iconaHTML = MapElementsRenderer.creaIconaRegressione();
                     const dimensioneInternaIconaReg = 24;
                     const spessoreBordoIconaReg = 2;
@@ -1559,6 +1622,7 @@ class GeoAnalysisApp {
                 omicidiCollaterali: convertiInUTM(rawData.omicidiCollaterali)
             };
         }
+        this.caricaPuntiUtente();
     }
     // Centra la mappa sulla posizione appropriata in base al caso
     centraMappa() {
@@ -1575,6 +1639,13 @@ class GeoAnalysisApp {
         const abitazioniSospettati = this.getAbitazioniSospettatiAttivi();
         const abitazioniVittime = this.getAbitazioniVittimeAttivi();
         const puntiInteresse = this.getPuntiInteresseAttivi();
+        
+        const puntiUtente = [
+            ...delittiAttivi.filter(p => p.userPoint), 
+            ...puntiInteresse.filter(p => p.userPoint),
+            ...abitazioniSospettati.filter(p => p.userPoint),
+            ...abitazioniVittime.filter(p => p.userPoint)
+        ];
 
         // Ordina i delitti per anno crescente (più vecchio = 1)
         const delittiOrdinati = [...delittiAttivi].sort((a, b) => a.year - b.year);
@@ -1590,6 +1661,7 @@ class GeoAnalysisApp {
         delittiAttivi.forEach(punto => {
             const isCollaterale = this.datasets.omicidiCollaterali.some(d => d.label === punto.label);
             const numeroDelitto = mostraNumeroDelitto ? labelToNumero.get(punto.label) : undefined;
+            
             this.mapManager.addIcon(punto.lat, punto.lon, {
                 html: MapElementsRenderer.creaMarkerDelitto(isCollaterale, numeroDelitto),
                 popup: generaPopupHtml(punto, centers),
@@ -1704,6 +1776,226 @@ class GeoAnalysisApp {
             }
         });
     }
+    
+    // Salva un punto utente nel localStorage
+    salvaPuntoUtente(tipo, punto) {
+        let tipoStorage = tipo;
+        if (tipo === 'delitto') tipoStorage = 'delitti';
+        else if (tipo === 'collaterale') tipoStorage = 'omicidiCollaterali';
+        else if (tipo === 'poi') tipoStorage = 'puntiInteresse';
+        else if (tipo === 'abitazioneVittima') tipoStorage = 'abitazioniVittime';
+        else if (tipo === 'abitazioneSospettato') tipoStorage = 'abitazioniSospettati';
+        
+        // Prepara la chiave per il localStorage basata sul tipo di punto e il caso attivo
+        const storageKey = `punti_utente_${this.casoAttivo}_${tipoStorage}`;
+        
+        try {
+            const esistente = localStorage.getItem(storageKey);
+            
+            let puntiSalvati = [];
+            if (esistente) {
+                puntiSalvati = JSON.parse(esistente);
+            }            
+            puntiSalvati.push(punto);
+            
+            // Verifica se il punto è già stato aggiunto per evitare duplicati
+            const stringaDaSalvare = JSON.stringify(puntiSalvati);
+            
+            localStorage.setItem(storageKey, stringaDaSalvare);            
+            const verificaSalvataggio = localStorage.getItem(storageKey);
+        } catch (error) {
+            console.error(`[ERROR] Errore nel salvataggio in localStorage per ${storageKey}:`, error);
+        }
+    }
+    
+    // Carica i punti utente dal localStorage
+    caricaPuntiUtente() {        
+        const mappaChiavi = {
+            // Chiavi plurali standard
+            'delitti': 'delitti',
+            'omicidiCollaterali': 'omicidiCollaterali',
+            'puntiInteresse': 'puntiInteresse',
+            'abitazioniVittime': 'abitazioniVittime',
+            'abitazioniSospettati': 'abitazioniSospettati',
+            
+            // Possibili chiavi singolari (in base ai nomi dei tipi)
+            'delitto': 'delitti',
+            'collaterale': 'omicidiCollaterali',
+            'poi': 'puntiInteresse',
+            'abitazioneVittima': 'abitazioniVittime',
+            'abitazioneSospettato': 'abitazioniSospettati'
+        };
+        
+        const chiavi = [];
+        for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key.startsWith(`punti_utente_${this.casoAttivo}`)) {
+                chiavi.push(key);
+                try {
+                    const value = localStorage.getItem(key);                    
+                    // Verifica se il contenuto è un JSON valido
+                    try {
+                        const parsed = JSON.parse(value);
+                    } catch (e) {
+                        console.error(`[ERROR] Non è possibile fare il parsing del valore come JSON:`, e);
+                    }
+                }
+                catch (e) {
+                    console.error(`[ERROR] Errore nell'accesso a localStorage[${key}]:`, e);
+                }
+            }
+        }        
+        
+        // Processiamo ogni chiave trovata
+        let totaleCaricati = 0;
+        let puntiUtenteTotali = [];
+        
+        chiavi.forEach(chiave => {
+            // Estrai il tipo dalla chiave
+            const tipoChiave = chiave.split('_').pop(); // Prende l'ultima parte dopo l'underscore
+            const tipoDataset = mappaChiavi[tipoChiave];
+            
+            if (!tipoDataset) {
+                console.warn(`[WARN] Tipo di dato sconosciuto nella chiave ${chiave}: ${tipoChiave}`);
+                return;
+            }            
+            
+            try {
+                const salvato = localStorage.getItem(chiave);
+                if (!salvato) {
+                    return;
+                }                
+                
+                const puntiSalvati = JSON.parse(salvato);
+                
+                if (puntiSalvati.length > 0) {
+                    totaleCaricati += puntiSalvati.length;
+                    
+                    puntiSalvati.forEach((punto, indice) => {
+                        punto.groupId = null;
+                        punto.userPoint = true;                        
+                        
+                        // Aggiungi il punto al dataset corrispondente
+                        if (this.datasets[tipoDataset]) {
+                            this.datasets[tipoDataset].push(punto);
+                            puntiUtenteTotali.push({tipo: tipoDataset, punto: punto});
+                        } else {
+                            console.error(`[ERROR] Dataset non trovato: ${tipoDataset}`);
+                        }
+                    });
+                }
+            } catch (error) {
+                console.error(`[ERROR] Errore nel parsing del localStorage per ${chiave}:`, error);
+            }
+        });        
+        
+        // Verifica se i punti utente sono stati aggiunti correttamente ai dataset
+        for (const key in this.datasets) {
+            const puntiUtente = this.datasets[key].filter(p => p.userPoint === true);
+        }
+        
+        if (totaleCaricati > 0) {            
+            
+            // Log dei contenitori per i checkbox
+            for (const key in this.datasets) {
+                const containerId = key === 'delitti' ? 'delitti-checkbox' :
+                                   key === 'omicidiCollaterali' ? 'omicidi-collaterali-checkbox' :
+                                   key === 'puntiInteresse' ? 'punti-interesse-checkbox' :
+                                   key === 'abitazioniVittime' ? 'abitazioni-vittime-checkbox' :
+                                   key === 'abitazioniSospettati' ? 'abitazioni-sospettati-checkbox' : null;
+                                   
+                if (containerId) {
+                    const container = document.getElementById(containerId);
+                }
+            }
+            
+            // Prima aspettiamo che i checkbox originali siano popolati
+            setTimeout(() => {
+                
+                puntiUtenteTotali.forEach(({tipo, punto}) => {
+                    const containerId = tipo === 'delitti' ? 'delitti-checkbox' :
+                                       tipo === 'omicidiCollaterali' ? 'omicidi-collaterali-checkbox' :
+                                       tipo === 'puntiInteresse' ? 'punti-interesse-checkbox' :
+                                       tipo === 'abitazioniVittime' ? 'abitazioni-vittime-checkbox' :
+                                       tipo === 'abitazioniSospettati' ? 'abitazioni-sospettati-checkbox' : null;
+                    
+                    if (!containerId) {
+                        console.error(`[ERROR] Impossibile trovare il containerId per il tipo ${tipo}`);
+                        return;
+                    }
+                    
+                    const container = document.getElementById(containerId);
+                    
+                    if (container) {
+                        const uniqueSuffix = `${tipo}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+                        const checkboxHTML = creaCheckbox(punto, true, uniqueSuffix);
+                        
+                        container.insertAdjacentHTML('beforeend', checkboxHTML);
+                        
+                        const checkboxId = `chk-${uniqueSuffix.replace(/[^a-zA-Z0-9-_]/g, '-')}`;
+                        
+                        // Usiamo querySelector sul document intero per essere sicuri di trovarlo
+                        const allCheckboxes = document.querySelectorAll(`input[id="${checkboxId}"]`);
+                        
+                        const newCheckbox = container.querySelector(`input[id="${checkboxId}"]`);
+                        if (newCheckbox) {
+                            // Importante: assicuriamoci che il checkbox sia selezionato
+                            newCheckbox.checked = true;
+                            
+                            newCheckbox.addEventListener('change', () => {
+                                this.aggiornaVisualizzazione();
+                            });
+                        } else {
+                            console.warn(`[DEBUG] Checkbox non trovato per ID: ${checkboxId}, cerco per data-label`);
+                            // Proviamo a cercarlo usando l'attributo data-label
+                            const checkboxByLabel = container.querySelector(`input[data-label="${punto.label}"]`);
+                            if (checkboxByLabel) {
+                                checkboxByLabel.checked = true;
+                            } else {
+                                console.error(`[ERROR] Impossibile trovare il checkbox per ${punto.label}`);
+                            }
+                        }
+                    } else {
+                        console.warn(`[DEBUG] Container checkbox non trovato: ${containerId}`);
+                    }
+                });
+                
+                this.aggiornaVisualizzazione();
+                
+                setTimeout(() => {
+                    this.aggiornaVisualizzazione();
+                }, 500);                
+            }, 1000);
+        }
+    }
+    
+    // Resetta i punti utente salvati nel localStorage
+    resetPuntiUtente() {
+        if (window.confirm("Sei sicuro di voler cancellare tutti i punti utente salvati?\nQuesta azione non può essere annullata.")) {
+            const tipiPunti = ['delitti', 'omicidiCollaterali', 'puntiInteresse', 'abitazioniVittime', 'abitazioniSospettati'];
+        
+            tipiPunti.forEach(tipo => {
+                const storageKey = `punti_utente_${this.casoAttivo}_${tipo}`;
+                localStorage.removeItem(storageKey);
+            });            
+            window.location.reload();
+        }
+    }
+    
+    haPuntiUtenteSalvati() {
+        const tipiPunti = ['delitti', 'omicidiCollaterali', 'puntiInteresse', 'abitazioniVittime', 'abitazioniSospettati'];
+        
+        for (const tipo of tipiPunti) {
+            const storageKey = `punti_utente_${this.casoAttivo}_${tipo}`;
+            const puntiSalvati = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            
+            if (puntiSalvati.length > 0) {
+                return true;
+            }
+        }
+        
+        return false;
+    }
 }
 
 function aggiungiListenerModifica(selettore, callback) {
@@ -1730,13 +2022,13 @@ function creaCheckbox(item, checked = true, uniqueSuffix) {
                       <span style="font-weight: 500; color: var(--color-text);">Fonti:</span><br>`;
         
         linkSources.forEach((fonte, idx) => {
-            if (typeof fonte === 'string') { // Array di URL stringhe
+            if (typeof fonte === 'string') {
                 linksHtml += `<a href="${MapElementsRenderer.escapeHtml(fonte)}" target="_blank" rel="noopener noreferrer" 
                                 style="color: var(--color-primary); text-decoration: underline; display: inline-block; margin-top: var(--sp-xxs);">
                                 ${MapElementsRenderer.escapeHtml(fonte.substring(0, 40))}${fonte.length > 40 ? '...' : ''}
                              </a><br>`;
             }
-            else if (fonte && typeof fonte.url === 'string') { // Array di oggetti {nome, url} o {text, url}
+            else if (fonte && typeof fonte.url === 'string') {
                 const text = fonte.nome || fonte.text || fonte.url;
                 linksHtml += `<a href="${MapElementsRenderer.escapeHtml(fonte.url)}" target="_blank" rel="noopener noreferrer"
                                 style="color: var(--color-primary); text-decoration: underline; display: inline-block; margin-top: var(--sp-xxs);">
@@ -1766,10 +2058,22 @@ function generaPopupHtml(punto, centers) {
     return MapElementsRenderer.generaPopupHtml(punto, centers, window.casoAttivo);
 }
 function convertiUTMtoWGS84(x, y, caso = 'mdf') {
-    if (caso === 'mdf') {
-        return proj4('EPSG:32632', 'EPSG:4326', [x, y]);
-    } else { // caso zodiac
-        return proj4('EPSG:32610', 'EPSG:4326', [x, y]);
+    if (!isFinite(x) || !isFinite(y)) {
+        console.error("[DEBUG-CONVERT] Coordinate non valide:", x, y);
+        return [0, 0]; // Valore di fallback per evitare errori
+    }
+    
+    try {
+        if (caso === 'mdf') {
+            const result = proj4('EPSG:32632', 'EPSG:4326', [x, y]);
+            return result;
+        } else { // caso zodiac
+            const result = proj4('EPSG:32610', 'EPSG:4326', [x, y]);
+            return result;
+        }
+    } catch (error) {
+        console.error("[DEBUG-CONVERT] Errore nella conversione UTM->WGS84:", error, "Input:", x, y, caso);
+        return [0, 0];
     }
 }
 function convertiWGS84toUTM(lon, lat, caso = 'mdf') {
@@ -1782,4 +2086,3 @@ function convertiWGS84toUTM(lon, lat, caso = 'mdf') {
 function escapeHtml(str) {
     return MapElementsRenderer.escapeHtml(str);
 }
-window.addEventListener('DOMContentLoaded', () => new GeoAnalysisApp());

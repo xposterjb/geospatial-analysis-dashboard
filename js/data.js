@@ -11,7 +11,7 @@
  * - Funzione per la conversione in coordinate UTM
  */
 const rawData = {
-    delitti: [  
+    delitti: [          
         // Luogo dell'omicidio Bar. Loc. e Ant. LoB.
         // Data e orario: 22 agosto 1968 tra le 00:15 e le 00:25
         [

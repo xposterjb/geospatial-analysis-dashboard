@@ -277,9 +277,7 @@ const MapElementsRenderer = {
     },
     
     creaContenutoInfobox: (titolo, iconHtml, color, centerPoint, puntiUTM, riepilogoPunti, caso) => {
-        const [lon, lat] = convertiUTMtoWGS84(centerPoint.x, centerPoint.y, caso);
-        
-        // Calcola statistiche sulle distanze
+        const [lon, lat] = convertiUTMtoWGS84(centerPoint.x, centerPoint.y, caso);        
         const stats = MapElementsRenderer.calcolaStatisticheDistanze(centerPoint, puntiUTM);
 
         const riepilogoHtml = riepilogoPunti
@@ -351,7 +349,7 @@ const MapElementsRenderer = {
             { value: 0.5, color: 'rgba(255, 100, 0, 0.9)', label: 'Cluster Moderato' },
             { value: 1.0, color: 'rgba(0, 255, 0, 0.9)', label: 'Distribuzione Casuale' },
             { value: 1.5, color: 'rgba(0, 100, 255, 0.9)', label: 'Dispersione Moderata' },
-            { value: 2.0, color: 'rgba(0, 0, 255, 0.9)', label: 'Dispersione Forte' }
+            { value: 2.5, color: 'rgba(0, 0, 200, 0.9)', label: 'Dispersione Forte' }
         ];
 
         const gradientCSS = gradientStops.map(stop => `${stop.color} ${(stop.value / 2.5) * 100}%`).join(', ');
@@ -399,13 +397,12 @@ const MapElementsRenderer = {
                         height: 3px;
                         background-color: var(--nni-indicator-bg);
                         box-shadow: 0 0 3px rgba(0, 0, 0, 0.5);
-                        top: ${100 - indicatorPosition}%;"></div>
+                        top: ${indicatorPosition}%;"></div>
                 </div>
                 <table class="nni-table" style="border-collapse: collapse;">
                     ${gradientStops.map(stop => `
                     <tr class="${Math.abs(stop.value - indice) < 0.25 ? 'highlight' : ''}">
                         <td class="nni-table-cell" style="padding: 2px; ${Math.abs(stop.value - indice) < 0.25 ? 'font-weight: 500;' : ''}">${stop.label}</td>
-                        <td class="nni-table-cell" style="padding: 2px; ${Math.abs(stop.value - indice) < 0.25 ? 'font-weight: 500;' : ''}">${stop.value.toFixed(1)}</td>
                     </tr>
                     `).join('')}
                 </table>

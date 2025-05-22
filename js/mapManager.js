@@ -62,7 +62,6 @@ class MapManager {
             }
         });
         
-        // Callback per quando un punto viene aggiunto
         this.onPointAdded = null;
     }
 
@@ -131,7 +130,6 @@ class MapManager {
         if (this.baseMaps[tipo]) {
             this.baseMaps[tipo].addTo(this.map);
         }
-        // Salva la preferenza di mappa
         localStorage.setItem('tipomappa', tipo);
     }
 
@@ -437,31 +435,57 @@ class MapManager {
     }
 
     addPolygon(latlngs, options = {}) {
+        if (latlngs && latlngs.length > 0) {
+            latlngs.forEach((coord, index) => {
+                if (typeof coord[0] !== 'number' || typeof coord[1] !== 'number' || isNaN(coord[0]) || isNaN(coord[1])) {
+                    console.error(`[DEBUG-POLYGON] Coordinata non valida all'indice ${index}:`, coord);
+                }
+            });
+        } else {
+            console.warn("[DEBUG-POLYGON] latlngs è vuoto o non definito.");
+            return null;
+        }
+
         const defaults = {
             color: '#3388ff',
             weight: 3,
             opacity: 0.5,
             fillOpacity: 0.2
         };
+        
+        if (options.weight && typeof options.weight === 'string') {
+            options.weight = parseFloat(options.weight);
+        }
+        if (options.weight && isNaN(options.weight)) {
+            console.warn(`[DEBUG-POLYGON] Opzione weight non valida (${options.weight}), usando default: ${defaults.weight}`);
+            options.weight = defaults.weight;
+        }
+        
         const settings = { ...defaults, ...options };
-        
-        const polygon = L.polygon(latlngs, settings).addTo(this.map);
-        
-        if (options.popup) {
-            polygon.bindPopup(options.popup);            
-            polygon.off('click');
-            
-            polygon.on('click', (e) => {
-                if (!this.isDrawingMode) {
-                    polygon.openPopup();
-                }
-                if (this.isDrawingMode) {
-                    L.DomEvent.stopPropagation(e);
-                }
-            });
-        }        
-        this.layers.push(polygon);
-        return polygon;
+
+        try {
+            const polygon = L.polygon(latlngs, settings).addTo(this.map);
+            const bounds = polygon.getBounds();
+
+            if (options.popup) {
+                polygon.bindPopup(options.popup);            
+                polygon.off('click');
+                
+                polygon.on('click', (e) => {
+                    if (!this.isDrawingMode) {
+                        polygon.openPopup();
+                    }
+                    if (this.isDrawingMode) {
+                        L.DomEvent.stopPropagation(e);
+                    }
+                });
+            }        
+            this.layers.push(polygon);
+            return polygon;
+        } catch (error) {
+            console.error("[DEBUG-POLYGON] Errore nella creazione del poligono:", error);
+            return null;
+        }
     }
 
     abilitaCoordinateButton() {
@@ -470,11 +494,7 @@ class MapManager {
             btn.addEventListener('click', () => this.attivaModalitaCoordinate());
         }
     }
-
-    /**
-     * Attiva la modalità aggiunta punto: attende click su mappa, mostra popup per nome/fonte/salva.
-     * @param {string} tipo - Tipo di punto da aggiungere
-     */
+   
     attivaPannelloAggiungiPunto() {
         this.disattivaHandlerAttivi();
         this.isDrawingMode = true;
@@ -531,7 +551,6 @@ class MapManager {
                 iconAnchor: [15, 30]
             });
 
-            // Crea popup custom HTML migliorato
             popupDiv = document.createElement('div');
             popupDiv.className = 'custom-add-point-popup';
             let annoField = '';
@@ -669,6 +688,313 @@ class MapManager {
         this.map.on('click', this.clickHandler);
     }
 
+    attivaModalitaImportaKML() {
+        this.disattivaHandlerAttivi();
+        
+        // Crea la finestra di dialogo per il caricamento KML
+        const mapContainer = document.querySelector('.leaflet-container');
+        const popupDiv = document.createElement('div');
+        popupDiv.className = 'custom-kml-upload-popup';
+        
+        popupDiv.innerHTML = `
+            <div class="popup-title" style="font-size:1.1rem;font-weight:600;margin-bottom:var(--sp-sm);color:var(--color-primary)">Carica file KML</div>
+            <p style="margin-bottom:var(--sp-md);font-size:0.9rem;color:var(--color-gray-700)">Seleziona un file KML per importare i punti sulla mappa.</p>
+            <input type="file" id="kml-file-input" accept=".kml" style="margin-bottom:var(--sp-md);" />
+            <div class="popup-actions" style="display:flex;gap:var(--sp-md);margin-top:var(--sp-sm);justify-content:flex-end;">
+                <button class="btn btn-primary" id="popup-carica-kml">Carica</button>
+                <button class="btn btn-secondary" id="popup-annulla-kml">Annulla</button>
+            </div>
+        `;
+        
+        popupDiv.style.position = 'absolute';
+        popupDiv.style.left = '50%';
+        popupDiv.style.top = '50%';
+        popupDiv.style.transform = 'translate(-50%, -50%)';
+        popupDiv.style.zIndex = 3000;
+        popupDiv.style.minWidth = '320px';
+        popupDiv.style.background = 'var(--color-white)';
+        popupDiv.style.boxShadow = 'var(--shadow-md)';
+        popupDiv.style.borderRadius = 'var(--radius-md)';
+        popupDiv.style.padding = 'var(--sp-lg)';
+        popupDiv.style.display = 'flex';
+        popupDiv.style.flexDirection = 'column';
+        
+        mapContainer.appendChild(popupDiv);
+        
+        // Funzione di pulizia
+        const cleanup = () => {
+            if (popupDiv && popupDiv.parentNode) {
+                popupDiv.parentNode.removeChild(popupDiv);
+            }
+            this.disattivaHandlerAttivi();
+        };
+        
+        // Handler Annulla
+        popupDiv.querySelector('#popup-annulla-kml').addEventListener('click', cleanup);
+        
+        // Handler Carica
+        popupDiv.querySelector('#popup-carica-kml').addEventListener('click', () => {
+            const fileInput = document.getElementById('kml-file-input');
+            if (fileInput.files.length === 0) {
+                alert('Seleziona un file KML.');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const reader = new FileReader();
+            
+            reader.onload = (e) => {
+                try {
+                    const kmlContent = e.target.result;
+                    const parser = new DOMParser();
+                    const kmlDoc = parser.parseFromString(kmlContent, 'text/xml');
+                    
+                    // Estrai i punti dal file KML
+                    const placemarks = kmlDoc.getElementsByTagName('Placemark');
+                    const points = [];
+                    
+                    for (let i = 0; i < placemarks.length; i++) {
+                        const placemark = placemarks[i];
+                        const name = placemark.getElementsByTagName('name')[0]?.textContent || 'Punto KML';
+                        const point = placemark.getElementsByTagName('Point')[0];
+                        
+                        if (point) {
+                            const coordinates = point.getElementsByTagName('coordinates')[0]?.textContent;
+                            if (coordinates) {
+                                const [lon, lat] = coordinates.trim().split(',').map(parseFloat);
+                                if (!isNaN(lat) && !isNaN(lon)) {
+                                    points.push({ name, lat, lon });
+                                }
+                            }
+                        }
+                    }
+                    
+                    if (points.length === 0) {
+                        alert('Nessun punto trovato nel file KML.');
+                        return;
+                    }
+                    
+                    // Mostra il popup per la configurazione dei punti
+                    this.mostraConfigurazioneKML(points, cleanup);
+                    
+                } catch (error) {
+                    console.error('Errore nel parsing del file KML:', error);
+                    alert('Errore nel parsing del file KML. Assicurati che il file sia valido.');
+                }
+            };
+            
+            reader.readAsText(file);
+        });
+    }
+    
+    mostraConfigurazioneKML(points, cleanupKmlUpload) {
+        const mapContainer = document.querySelector('.leaflet-container');
+        const popupDiv = document.createElement('div');
+        popupDiv.className = 'custom-kml-config-popup';
+        
+        // Determine il caso attivo per selezionare gli ID gruppo corretti
+        const casoAttivo = window.casoAttivo || 'mdf';
+        const groupLabelsObj = casoAttivo === 'zodiac' ? window.zodiacGroupLabels : window.groupLabels;
+        
+        // Crea array di opzioni per gruppi
+        const groupOptions = Object.entries(groupLabelsObj).map(([id, label]) => {
+            // Per gruppo 0, mostra "Non specificato" ma mantieni l'etichetta originale intatta
+            return { 
+                id, 
+                label: id === '0' ? 'Non specificato' : (label || `Gruppo ${id}`)
+            };
+        });
+        
+        popupDiv.innerHTML = `
+            <div class="popup-title" style="font-size:1.1rem;font-weight:600;margin-bottom:var(--sp-sm);color:var(--color-primary)">
+                Configura punti KML
+            </div>
+            <p style="margin-bottom:var(--sp-md);font-size:0.9rem;color:var(--color-gray-700)">
+                Configura i ${points.length} punti trovati nel file KML.
+            </p>
+            <div class="kml-points-container" style="max-height:400px;overflow-y:auto;margin-bottom:var(--sp-md);">
+                <table class="kml-points-table">
+                    <thead>
+                        <tr>
+                            <th style="width:30px;"><input type="checkbox" id="select-all-points" checked></th>
+                            <th>Nome</th>
+                            <th>Anno</th>
+                            <th>Gruppo</th>
+                            <th>Fonte</th>
+                            <th style="text-align:center;">
+                                <div class="tipo-icons-header">
+                                    <div class="tipo-icon" data-tipo="delitto" title="Delitto principale">${MapElementsRenderer.creaMarkerDelitto(false)}</div>
+                                    <div class="tipo-icon" data-tipo="collaterale" title="Delitto collaterale">${MapElementsRenderer.creaMarkerDelitto(true)}</div>
+                                    <div class="tipo-icon" data-tipo="poi" title="Punto di interesse">${MapElementsRenderer.creaMarkerPuntoInteresse()}</div>
+                                    <div class="tipo-icon" data-tipo="abitazioneVittima" title="Abitazione vittima">${MapElementsRenderer.creaMarkerAbitazioneVittima()}</div>
+                                    <div class="tipo-icon" data-tipo="abitazioneSospettato" title="Abitazione sospettato">${MapElementsRenderer.creaMarkerAbitazioneSospettato()}</div>
+                                </div>
+                            </th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${points.map((point, index) => `
+                            <tr class="kml-point-row" data-index="${index}">
+                                <td><input type="checkbox" class="punto-selezionato" checked></td>
+                                <td><input type="text" class="popup-input punto-nome" value="${MapElementsRenderer.escapeHtml(point.name)}"></td>
+                                <td><input type="number" class="popup-input punto-anno" placeholder="Anno" min="1800" max="2100"></td>
+                                <td>
+                                    <select class="popup-input punto-gruppo">
+                                        ${groupOptions.map(group => 
+                                            `<option value="${group.id}">${group.label}</option>`
+                                        ).join('')}
+                                    </select>
+                                </td>
+                                <td><input type="text" class="popup-input punto-fonte" placeholder="URL fonte"></td>
+                                <td style="text-align:center;">
+                                    <div class="tipo-selector">
+                                        ${['delitto', 'collaterale', 'poi', 'abitazioneVittima', 'abitazioneSospettato'].map(tipo => `
+                                            <label class="tipo-radio-label" title="${tipo === 'delitto' ? 'Delitto principale' : 
+                                                tipo === 'collaterale' ? 'Delitto collaterale' : 
+                                                tipo === 'poi' ? 'Punto di interesse' : 
+                                                tipo === 'abitazioneVittima' ? 'Abitazione vittima' : 'Abitazione sospettato'}">
+                                                <input type="radio" name="tipo-${index}" class="punto-tipo" value="${tipo}" ${tipo === 'poi' ? 'checked' : ''}>
+                                                <span class="tipo-radio-icon"></span>
+                                            </label>
+                                        `).join('')}
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+            <div class="popup-actions" style="display:flex;gap:var(--sp-md);margin-top:var(--sp-sm);justify-content:flex-end;">
+                <button class="btn btn-primary" id="popup-salva-kml-punti">Salva punti selezionati</button>
+                <button class="btn btn-secondary" id="popup-annulla-kml-punti">Annulla</button>
+            </div>
+        `;
+        
+        popupDiv.style.position = 'absolute';
+        popupDiv.style.left = '50%';
+        popupDiv.style.top = '50%';
+        popupDiv.style.transform = 'translate(-50%, -50%)';
+        popupDiv.style.zIndex = 3000;
+        popupDiv.style.width = '800px';
+        popupDiv.style.maxWidth = '95vw';
+        popupDiv.style.maxHeight = '90vh';
+        popupDiv.style.background = 'var(--color-white)';
+        popupDiv.style.boxShadow = 'var(--shadow-md)';
+        popupDiv.style.borderRadius = 'var(--radius-md)';
+        popupDiv.style.padding = 'var(--sp-lg)';
+        popupDiv.style.display = 'flex';
+        popupDiv.style.flexDirection = 'column';
+        popupDiv.style.overflow = 'hidden';
+        
+        mapContainer.appendChild(popupDiv);
+        
+        // Funzione di pulizia
+        const cleanup = () => {
+            if (cleanupKmlUpload) cleanupKmlUpload();
+            if (popupDiv && popupDiv.parentNode) {
+                popupDiv.parentNode.removeChild(popupDiv);
+            }
+            this.disattivaHandlerAttivi();
+        };
+        
+        // Seleziona/deseleziona tutti i punti
+        const selectAllCheckbox = popupDiv.querySelector('#select-all-points');
+        selectAllCheckbox.addEventListener('change', () => {
+            const checkboxes = popupDiv.querySelectorAll('.punto-selezionato');
+            checkboxes.forEach(cb => cb.checked = selectAllCheckbox.checked);
+        });
+        
+        // Resetta la selezione "Seleziona tutti" se un checkbox viene deselezionato
+        popupDiv.querySelectorAll('.punto-selezionato').forEach(checkbox => {
+            checkbox.addEventListener('change', () => {
+                const allChecked = Array.from(popupDiv.querySelectorAll('.punto-selezionato')).every(cb => cb.checked);
+                selectAllCheckbox.checked = allChecked;
+            });
+        });
+        
+        // Gestisci clic sulla intestazione delle icone
+        popupDiv.querySelectorAll('.tipo-icon').forEach(icon => {
+            icon.addEventListener('click', () => {
+                const tipo = icon.getAttribute('data-tipo');
+                const checked = popupDiv.querySelectorAll('.punto-selezionato:checked');
+                
+                checked.forEach(checkbox => {
+                    const row = checkbox.closest('.kml-point-row');
+                    const radio = row.querySelector(`.punto-tipo[value="${tipo}"]`);
+                    if (radio) radio.checked = true;
+                });
+            });
+        });
+        
+        // Handler Annulla
+        popupDiv.querySelector('#popup-annulla-kml-punti').addEventListener('click', cleanup);
+        
+        // Handler Salva
+        popupDiv.querySelector('#popup-salva-kml-punti').addEventListener('click', () => {
+            const rows = popupDiv.querySelectorAll('.kml-point-row');
+            const puntiConfigurati = [];
+            let errori = false;
+            
+            rows.forEach(row => {
+                const isSelected = row.querySelector('.punto-selezionato').checked;
+                if (!isSelected) return;
+                
+                const index = parseInt(row.getAttribute('data-index'));
+                const nome = row.querySelector('.punto-nome').value.trim();
+                const anno = row.querySelector('.punto-anno').value;
+                const gruppo = row.querySelector('.punto-gruppo').value;
+                const fonte = row.querySelector('.punto-fonte').value.trim();
+                const tipoEl = row.querySelector('.punto-tipo:checked');
+                const tipo = tipoEl ? tipoEl.value : 'poi';
+                
+                // Verifica se nome è compilato
+                if (!nome) {
+                    errori = true;
+                    row.classList.add('error');
+                    return;
+                }
+                
+                // Verifica se anno è compilato per i delitti
+                if ((tipo === 'delitto' || tipo === 'collaterale') && !anno) {
+                    errori = true;
+                    row.classList.add('error');
+                    return;
+                }
+                
+                const point = points[index];
+                puntiConfigurati.push({
+                    nome,
+                    year: anno ? parseInt(anno) : null,
+                    groupId: gruppo ? parseInt(gruppo) : null,
+                    tipo,
+                    lat: point.lat,
+                    lon: point.lon,
+                    fonte: fonte || "Importato da KML"
+                });
+            });
+            
+            if (errori) {
+                alert('Completa tutti i campi obbligatori per i punti selezionati.');
+                return;
+            }
+            
+            if (puntiConfigurati.length === 0) {
+                alert('Seleziona almeno un punto da importare.');
+                return;
+            }
+            
+            // Aggiungi tutti i punti
+            puntiConfigurati.forEach(punto => {
+                this.onPointAdded && this.onPointAdded(punto);
+            });
+            
+            cleanup();
+            
+            // Mostra messaggio di conferma
+            alert(`${puntiConfigurati.length} punti importati con successo.`);
+        });
+    }
+
     inizializzaStrumentiDisegno() {
         const drawControlContainer = document.createElement('div');
         drawControlContainer.className = 'map-tools-container';
@@ -721,6 +1047,8 @@ class MapManager {
             <button class="map-tool-btn aggiungi-punto-type-btn" data-type="poi" title="Punto di interesse">${MapElementsRenderer.creaMarkerPuntoInteresse()}</button>
             <button class="map-tool-btn aggiungi-punto-type-btn" data-type="abitazioneVittima" title="Abitazione vittima">${MapElementsRenderer.creaMarkerAbitazioneVittima()}</button>
             <button class="map-tool-btn aggiungi-punto-type-btn" data-type="abitazioneSospettato" title="Abitazione sospettato">${MapElementsRenderer.creaMarkerAbitazioneSospettato()}</button>
+            <button class="map-tool-btn aggiungi-punto-type-btn" data-type="kml" title="Carica KML"><span class="material-icons">upload_file</span></button>
+            <button class="map-tool-btn aggiungi-punto-type-btn" data-type="delete-user-points" title="Cancella Punti Utente"><span class="material-icons">delete_forever</span></button>
         `;
         drawControlContainer.appendChild(this.aggiungiPuntoTypeBar);
 
@@ -1466,10 +1794,15 @@ class MapManager {
 
     hideAggiungiPuntoUI() {
         this.aggiungiPuntoTypeBar.style.display = 'none';
-        // Eventuale cleanup di modalità aggiunta punto
-        if (this._aggiungiPuntoCleanup) {
-            this._aggiungiPuntoCleanup();
-            this._aggiungiPuntoCleanup = null;
+        this.rimuoviMessaggioIstruzioni();
+    }
+    
+    resetUserPoints() {
+        if (window.confirm("Sei sicuro di voler cancellare tutti i punti utente salvati?\nQuesta azione non può essere annullata.")) {
+            const geoApp = window.geoAnalysisApp;
+            if (geoApp && typeof geoApp.resetPuntiUtente === 'function') {
+                geoApp.resetPuntiUtente();
+            }
         }
     }
 }

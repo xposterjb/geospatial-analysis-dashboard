@@ -194,14 +194,36 @@ const algoritmiGeometrici = {
     // Calcola convex hull di un insieme di punti (algoritmo Monotone Chain)
     convexHull: function (punti) {
         try {
-            if (punti.length < 3) {
+            
+            if (!punti || !Array.isArray(punti)) {
+                console.error("[DEBUG-CHP] Input non valido:", punti);
+                return { punti: [], area: 0, perimetro: 0 };
+            }
+            
+            // Verifica che tutti i punti abbiano coordinate valide
+            const puntiValidi = punti.filter(p => p && typeof p.x === 'number' && typeof p.y === 'number' && 
+                                           isFinite(p.x) && isFinite(p.y));
+            
+            if (puntiValidi.length !== punti.length) {
+                console.warn("[DEBUG-CHP] Trovati punti con coordinate non valide:", 
+                             punti.length - puntiValidi.length, "punti filtrati");
+            }
+            
+            if (puntiValidi.length < 3) {
                 return {
-                    punti: punti.slice().sort((a, b) => a.x - b.x || a.y - b.y),
+                    punti: puntiValidi.slice().sort((a, b) => a.x - b.x || a.y - b.y),
                     area: 0,
-                    perimetro: punti.length === 2 ? algoritmiGeometrici.distanzaTraPunti(punti[0], punti[1]) : 0
+                    perimetro: puntiValidi.length === 2 ? algoritmiGeometrici.distanzaTraPunti(puntiValidi[0], puntiValidi[1]) : 0
                 };
             }
-            const puntiOrdinati = punti.slice().sort((a, b) => a.x - b.x || a.y - b.y);
+            
+            // Controllo collinearità
+            const sonoCollineari = algoritmiGeometrici.puntiCollineari(puntiValidi);
+            if (sonoCollineari) {
+                console.warn("[DEBUG-CHP] Punti collineari rilevati, impossibile creare un poligono valido");
+            }
+            
+            const puntiOrdinati = puntiValidi.slice().sort((a, b) => a.x - b.x || a.y - b.y);
             const bordoInferiore = [];
             for (const p of puntiOrdinati) {
                 // Rimuove i punti che creano concavità
@@ -210,6 +232,7 @@ const algoritmiGeometrici = {
                 }
                 bordoInferiore.push(p);
             }
+            
             const bordoSuperiore = [];
             for (let i = puntiOrdinati.length - 1; i >= 0; i--) {
                 const p = puntiOrdinati[i];
@@ -218,18 +241,22 @@ const algoritmiGeometrici = {
                 }
                 bordoSuperiore.push(p);
             }
+            
             // Rimuove i punti duplicati
             bordoSuperiore.pop();
             bordoInferiore.pop();
 
-            const hull = bordoInferiore.concat(bordoSuperiore);
+            const hull = bordoInferiore.concat(bordoSuperiore);            
+            
             const area = Math.abs(hull.reduce((acc, p, i) => {
                 const nextP = hull[(i + 1) % hull.length];
                 return acc + (p.x * nextP.y - nextP.x * p.y);
             }, 0)) / 2;
             const perimetro = algoritmiGeometrici.calcolaPerimetro(hull);
+            
             return { punti: hull, area, perimetro };
         } catch (error) {
+            console.error("[DEBUG-CHP] Errore durante il calcolo del Convex Hull:", error);
             return { punti: [], area: 0, perimetro: 0 };
         }
     },
@@ -713,12 +740,20 @@ const algoritmiGeometrici = {
 
     puntiCollineari: (punti) => {
         if (punti.length < 3) return true;
+        // Verifica dei primi 3 punti per debug
+        const p0 = punti[0], p1 = punti[1], p2 = punti[2];
+        const area012 = Math.abs(
+            (p1.x - p0.x) * (p2.y - p0.y) -
+            (p1.y - p0.y) * (p2.x - p0.x)
+        );
         for (let i = 2; i < punti.length; i++) {
             const areaDoppia = Math.abs(
                 (punti[1].x - punti[0].x) * (punti[i].y - punti[0].y) -
                 (punti[1].y - punti[0].y) * (punti[i].x - punti[0].x)
             );
-            if (areaDoppia > window.COLLINEARITY_THRESHOLD) return false;
+            if (areaDoppia > window.COLLINEARITY_THRESHOLD) {
+                return false;
+            }
         }
         return true;
     },
