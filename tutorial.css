@@ -1,0 +1,137 @@
+body.tutorial-active {
+    overflow: hidden;
+}
+
+.tutorial-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 10000; 
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.tutorial-overlay.dimmed {
+    background-color: rgba(0, 0, 0, 0.75); 
+}
+
+body.tutorial-active .tutorial-overlay {
+    opacity: 1;
+    visibility: visible;
+}
+
+.tutorial-popup {
+    position: fixed;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    padding: 20px;
+    z-index: 10001;
+    max-width: 400px;
+    min-width: 300px;
+    font-family: Arial, sans-serif;
+    color: #333;
+    line-height: 1.6;
+}
+
+.tutorial-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+
+.tutorial-header h4 {
+    margin: 0;
+    font-size: 1.2em;
+    color: #1a73e8;
+}
+
+.tutorial-close-btn {
+    background: none;
+    border: none;
+    font-size: 1.8em;
+    font-weight: bold;
+    color: #aaa;
+    cursor: pointer;
+    padding: 0 5px;
+}
+
+.tutorial-close-btn:hover {
+    color: #777;
+}
+
+.tutorial-content {
+    margin-bottom: 20px;
+}
+
+.tutorial-content p {
+    margin: 0 0 10px 0;
+}
+
+.tutorial-navigation {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.tutorial-navigation button {
+    padding: 10px 15px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 0.9em;
+    font-weight: bold;
+    transition: background-color 0.2s ease;
+}
+
+.tutorial-prev-btn {
+    background-color: #f0f0f0;
+    color: #333;
+}
+
+.tutorial-prev-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.tutorial-next-btn {
+    background-color: #1a73e8;
+    color: #fff;
+}
+
+.tutorial-next-btn:hover {
+    background-color: #155ab6;
+}
+
+.tutorial-navigation button:only-child {
+    width: 100%;
+}
+
+
+.tutorial-highlight {
+    position: relative;
+    z-index: 10002 !important;
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.7), 0 0 15px rgba(26, 115, 232, 0.5);
+    border-radius: 4px;
+    transition: box-shadow 0.3s ease-in-out;
+}
+
+.tutorial-popup.wide-popup {
+    max-width: 600px;
+}
+
+.tutorial-popup.important-step {
+    border-left: 5px solid #d9534f;
+}
+
+.tutorial-highlight * {
+  position: relative;
+  z-index: 10002 !important;
+} 

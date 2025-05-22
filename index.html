@@ -272,6 +272,7 @@
               </div>
             </div>
           </div>
+
         </div>
       </details>
 
@@ -543,14 +544,24 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/proj4js/2.7.5/proj4.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/numeric/1.2.6/numeric.min.js"></script>
   <script src="https://unpkg.com/leaflet-geometryutil@0.10.1/src/leaflet.geometryutil.js"></script>
+  
   <!-- Script dell'applicazione -->
   <script src="js/config.js"></script>
   <script src="js/data.js"></script>
   <script src="js/zodiacData.js"></script>
-  <script src="js/algorithms.js"></script>
+  <script src="js/algorithms.js"></script> <!-- Presumo sia il vecchio nome di algoritmiGeometrici.js -->
   <script src="js/mapManager.js"></script>
   <script src="js/mapElementsRenderer.js"></script>
-  <script src="js/geoAnalysis.js"></script>
   <script src="js/tema.js"></script>
+  <!-- File principali dell'app e tutorial -->
+  <script src="js/geoAnalysis.js"></script>
+  <script src="js/tutorial.js"></script>
+  <script>
+    // Rendi disponibile l'istanza dell'app globalmente
+    document.addEventListener('DOMContentLoaded', () => {
+      window.geoAnalysisApp = new GeoAnalysisApp();
+    });
+  </script>
+
 </body>
 </html>
