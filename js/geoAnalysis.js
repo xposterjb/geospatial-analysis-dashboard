@@ -580,7 +580,9 @@ class GeoAnalysisApp {
         const labelSelezionate = new Set(checkboxes.map(cb => cb.dataset.label));        
         let puntiSelezionati = [];        
         dataset.forEach(punto => {
-            if (punto.userPoint === true || labelSelezionate.has(punto.label)) {
+            // Un punto è selezionato se il suo label è tra quelli con checkbox attivi.
+            // Questo vale sia per i punti utente che per quelli predefiniti.
+            if (labelSelezionate.has(punto.label)) {
                 puntiSelezionati.push(punto);
             }
         });
@@ -1853,146 +1855,55 @@ class GeoAnalysisApp {
             'abitazioneSospettato': 'abitazioniSospettati'
         };
         
-        const chiavi = [];
+        // Processiamo ogni chiave trovata
+        let totaleCaricati = 0;
+        
         for (let i = 0; i < localStorage.length; i++) {
             const key = localStorage.key(i);
             if (key.startsWith(`punti_utente_${this.casoAttivo}`)) {
-                chiavi.push(key);
                 try {
-                    const value = localStorage.getItem(key);                    
-                    // Verifica se il contenuto è un JSON valido
-                    try {
-                        const parsed = JSON.parse(value);
-                    } catch (e) {
-                        console.error(`[ERROR] Non è possibile fare il parsing del valore come JSON:`, e);
+                    const salvato = localStorage.getItem(key);
+                    if (!salvato) {
+                        console.warn(`[WARN] Nessun dato trovato per la chiave ${key} nel localStorage.`);
+                        continue;
                     }
-                }
-                catch (e) {
-                    console.error(`[ERROR] Errore nell'accesso a localStorage[${key}]:`, e);
+                    
+                    const puntiSalvati = JSON.parse(salvato);
+                    const tipoChiave = key.split('_').pop(); // Prende l'ultima parte dopo l'underscore
+                    const tipoDataset = mappaChiavi[tipoChiave];
+                    
+                    if (!tipoDataset) {
+                        console.warn(`[WARN] Tipo di dato sconosciuto nella chiave ${key}: ${tipoChiave}`);
+                        continue;
+                    }            
+                    if (!this.datasets[tipoDataset]) {
+                        console.error(`[ERROR] Dataset di destinazione non trovato: ${tipoDataset} per la chiave ${key}`);
+                        continue;
+                    }
+                    
+                    if (puntiSalvati.length > 0) {
+                        puntiSalvati.forEach((punto, indice) => {
+                            punto.groupId = null; // Assicurati che i punti utente non abbiano groupId se non gestito diversamente
+                            punto.userPoint = true;                        
+                            
+                            // Aggiungi il punto al dataset corrispondente
+                            this.datasets[tipoDataset].push(punto);
+                            totaleCaricati++;
+                        });
+                    }
+                } catch (error) {
+                    console.error(`[ERROR] Errore nel caricamento o parsing del localStorage per ${key}:`, error);
                 }
             }
         }        
         
-        // Processiamo ogni chiave trovata
-        let totaleCaricati = 0;
-        let puntiUtenteTotali = [];
-        
-        chiavi.forEach(chiave => {
-            // Estrai il tipo dalla chiave
-            const tipoChiave = chiave.split('_').pop(); // Prende l'ultima parte dopo l'underscore
-            const tipoDataset = mappaChiavi[tipoChiave];
-            
-            if (!tipoDataset) {
-                console.warn(`[WARN] Tipo di dato sconosciuto nella chiave ${chiave}: ${tipoChiave}`);
-                return;
-            }            
-            
-            try {
-                const salvato = localStorage.getItem(chiave);
-                if (!salvato) {
-                    return;
-                }                
-                
-                const puntiSalvati = JSON.parse(salvato);
-                
-                if (puntiSalvati.length > 0) {
-                    totaleCaricati += puntiSalvati.length;
-                    
-                    puntiSalvati.forEach((punto, indice) => {
-                        punto.groupId = null;
-                        punto.userPoint = true;                        
-                        
-                        // Aggiungi il punto al dataset corrispondente
-                        if (this.datasets[tipoDataset]) {
-                            this.datasets[tipoDataset].push(punto);
-                            puntiUtenteTotali.push({tipo: tipoDataset, punto: punto});
-                        } else {
-                            console.error(`[ERROR] Dataset non trovato: ${tipoDataset}`);
-                        }
-                    });
-                }
-            } catch (error) {
-                console.error(`[ERROR] Errore nel parsing del localStorage per ${chiave}:`, error);
-            }
-        });        
-        
-        // Verifica se i punti utente sono stati aggiunti correttamente ai dataset
-        for (const key in this.datasets) {
-            const puntiUtente = this.datasets[key].filter(p => p.userPoint === true);
-        }
-        
         if (totaleCaricati > 0) {            
-            
-            // Log dei contenitori per i checkbox
-            for (const key in this.datasets) {
-                const containerId = key === 'delitti' ? 'delitti-checkbox' :
-                                   key === 'omicidiCollaterali' ? 'omicidi-collaterali-checkbox' :
-                                   key === 'puntiInteresse' ? 'punti-interesse-checkbox' :
-                                   key === 'abitazioniVittime' ? 'abitazioni-vittime-checkbox' :
-                                   key === 'abitazioniSospettati' ? 'abitazioni-sospettati-checkbox' : null;
-                                   
-                if (containerId) {
-                    const container = document.getElementById(containerId);
-                }
-            }
-            
-            // Prima aspettiamo che i checkbox originali siano popolati
-            setTimeout(() => {
-                
-                puntiUtenteTotali.forEach(({tipo, punto}) => {
-                    const containerId = tipo === 'delitti' ? 'delitti-checkbox' :
-                                       tipo === 'omicidiCollaterali' ? 'omicidi-collaterali-checkbox' :
-                                       tipo === 'puntiInteresse' ? 'punti-interesse-checkbox' :
-                                       tipo === 'abitazioniVittime' ? 'abitazioni-vittime-checkbox' :
-                                       tipo === 'abitazioniSospettati' ? 'abitazioni-sospettati-checkbox' : null;
-                    
-                    if (!containerId) {
-                        console.error(`[ERROR] Impossibile trovare il containerId per il tipo ${tipo}`);
-                        return;
-                    }
-                    
-                    const container = document.getElementById(containerId);
-                    
-                    if (container) {
-                        const uniqueSuffix = `${tipo}-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-                        const checkboxHTML = creaCheckbox(punto, true, uniqueSuffix);
-                        
-                        container.insertAdjacentHTML('beforeend', checkboxHTML);
-                        
-                        const checkboxId = `chk-${uniqueSuffix.replace(/[^a-zA-Z0-9-_]/g, '-')}`;
-                        
-                        // Usiamo querySelector sul document intero per essere sicuri di trovarlo
-                        const allCheckboxes = document.querySelectorAll(`input[id="${checkboxId}"]`);
-                        
-                        const newCheckbox = container.querySelector(`input[id="${checkboxId}"]`);
-                        if (newCheckbox) {
-                            // Importante: assicuriamoci che il checkbox sia selezionato
-                            newCheckbox.checked = true;
-                            
-                            newCheckbox.addEventListener('change', () => {
-                                this.aggiornaVisualizzazione();
-                            });
-                        } else {
-                            console.warn(`[DEBUG] Checkbox non trovato per ID: ${checkboxId}, cerco per data-label`);
-                            // Proviamo a cercarlo usando l'attributo data-label
-                            const checkboxByLabel = container.querySelector(`input[data-label="${punto.label}"]`);
-                            if (checkboxByLabel) {
-                                checkboxByLabel.checked = true;
-                            } else {
-                                console.error(`[ERROR] Impossibile trovare il checkbox per ${punto.label}`);
-                            }
-                        }
-                    } else {
-                        console.warn(`[DEBUG] Container checkbox non trovato: ${containerId}`);
-                    }
-                });
-                
-                this.aggiornaVisualizzazione();
-                
-                setTimeout(() => {
-                    this.aggiornaVisualizzazione();
-                }, 500);                
-            }, 1000);
+            console.log(`[GeoAnalysisApp] ${totaleCaricati} punti utente caricati e aggiunti ai dataset.`);
+            // Non è più necessario aggiungere HTML o chiamare aggiornaVisualizzazione qui.
+            // Il flusso di inizializzazione standard (constructor -> caricaDataset -> inizializzaControlli -> aggiornaVisualizzazione)
+            // si occuperà di renderizzare i checkbox e la mappa correttamente.
+            // Assicurati che popolaCheckbox venga chiamato dopo che this.datasets è stato aggiornato.
+            // L'aggiornamento della visualizzazione avverrà tramite la chiamata a this.aggiornaVisualizzazione() nel costruttore.
         }
     }
     
