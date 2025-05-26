@@ -881,3 +881,17 @@ const algoritmiGeometrici = {
         };
     },
 };
+
+/**
+ * Performs Kernel Density Estimation (KDE) on a set of points.
+ *
+ * @param {Array<Object>} points - An array of point objects, each with latitude and longitude.
+ * @param {number} bandwidth - The bandwidth (smoothing parameter) for the KDE.
+ * @param {string} kernel - The kernel function to use (e.g., 'gaussian', 'epanechnikov').
+ * @returns {Array<Array<number>>} A grid representing the KDE surface.
+ */
+function calculateKDE(points, bandwidth, kernel) {
+    // Implementation to be added
+    console.log("KDE calculation (to be implemented)");
+    return []; // Placeholder
+}

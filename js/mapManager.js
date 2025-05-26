@@ -934,8 +934,10 @@ class MapManager {
             const rows = popupDiv.querySelectorAll('.kml-point-row');
             const puntiConfigurati = [];
             let errori = false;
+            let duplicatiSaltati = 0;
             
             rows.forEach(row => {
+                row.classList.remove('error'); // Rimuovi errori precedenti
                 const isSelected = row.querySelector('.punto-selezionato').checked;
                 if (!isSelected) return;
                 
@@ -945,7 +947,7 @@ class MapManager {
                 const gruppo = row.querySelector('.punto-gruppo').value;
                 const fonte = row.querySelector('.punto-fonte').value.trim();
                 const tipoEl = row.querySelector('.punto-tipo:checked');
-                const tipo = tipoEl ? tipoEl.value : 'poi';
+                const tipo = tipoEl ? tipoEl.value : 'poi'; // Default a 'poi' se non selezionato
                 
                 // Verifica se nome è compilato
                 if (!nome) {
@@ -961,11 +963,23 @@ class MapManager {
                     return;
                 }
                 
-                const point = points[index];
+                const point = points[index]; // Contiene lat/lon originali
+
+                // Controllo duplicati prima di aggiungere
+                if (this.isDuplicatePoint && this.isDuplicatePoint(point.lat, point.lon)) {
+                    duplicatiSaltati++;
+                    // Fornisce un feedback visivo sulla riga, ma non blocca il salvataggio degli altri punti
+                    row.classList.add('warning-duplicate'); 
+                    // Potremmo voler informare l'utente in modo più aggregato alla fine,
+                    // invece di un alert per ogni duplicato.
+                    // Per ora, continuiamo senza alert individuale qui per non interrompere il flusso.
+                    return; // Salta questo punto duplicato
+                }
+                
                 puntiConfigurati.push({
                     nome,
                     year: anno ? parseInt(anno) : null,
-                    groupId: gruppo ? parseInt(gruppo) : null,
+                    groupId: gruppo ? parseInt(gruppo) : null, // Assicurati che il gruppo sia gestito correttamente
                     tipo,
                     lat: point.lat,
                     lon: point.lon,
@@ -974,24 +988,33 @@ class MapManager {
             });
             
             if (errori) {
-                alert('Completa tutti i campi obbligatori per i punti selezionati.');
+                alert('Completa tutti i campi obbligatori per i punti selezionati (marcati in rosso).');
                 return;
             }
             
-            if (puntiConfigurati.length === 0) {
-                alert('Seleziona almeno un punto da importare.');
+            if (puntiConfigurati.length === 0 && duplicatiSaltati === 0) {
+                alert('Seleziona almeno un punto valido da importare.');
+                return;
+            }
+            if (puntiConfigurati.length === 0 && duplicatiSaltati > 0) {
+                alert(`Nessun nuovo punto da importare. ${duplicatiSaltati} punt${duplicatiSaltati === 1 ? 'o era' : 'i erano'} duplicat${duplicatiSaltati === 1 ? 'o' : 'i'} e ${duplicatiSaltati === 1 ? 'è stato saltato' : 'sono stati saltati'}.`);
                 return;
             }
             
-            // Aggiungi tutti i punti
+            // Aggiungi tutti i punti non duplicati e validi
             puntiConfigurati.forEach(punto => {
-                this.onPointAdded && this.onPointAdded(punto);
+                if (this.onPointAdded) { // Assicurati che onPointAdded sia definito
+                    this.onPointAdded(punto);
+                }
             });
             
-            cleanup();
+            cleanup(); // Chiude il popup di configurazione KML
             
-            // Mostra messaggio di conferma
-            alert(`${puntiConfigurati.length} punti importati con successo.`);
+            let messaggioConferma = `${puntiConfigurati.length} punt${puntiConfigurati.length === 1 ? 'o importato' : 'i importati'} con successo.`;
+            if (duplicatiSaltati > 0) {
+                messaggioConferma += `\n${duplicatiSaltati} punt${duplicatiSaltati === 1 ? 'o era' : 'i erano'} duplicat${duplicatiSaltati === 1 ? 'o' : 'i'} e ${duplicatiSaltati === 1 ? 'è stato saltato' : 'sono stati saltati'}.`;
+            }
+            alert(messaggioConferma);
         });
     }
 

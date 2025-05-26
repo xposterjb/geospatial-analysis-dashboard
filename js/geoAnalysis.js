@@ -27,6 +27,9 @@ class GeoAnalysisApp {
         // Rendi disponibile globalmente il caso attivo
         window.casoAttivo = this.casoAttivo;
 
+        // Assegna la funzione di controllo duplicati al mapManager
+        this.mapManager.isDuplicatePoint = (lat, lon) => this.checkForDuplicateCoordinates(lat, lon);
+
         this.caricaDataset();
         this.centraMappa();
 
@@ -585,6 +588,28 @@ class GeoAnalysisApp {
         return puntiSelezionati;
     }
 
+    checkForDuplicateCoordinates(lat, lon, precision = 8) {
+        const allPoints = [
+            ...(this.datasets.delitti || []),
+            ...(this.datasets.omicidiCollaterali || []),
+            ...(this.datasets.puntiInteresse || []),
+        ];
+        const factor = Math.pow(10, precision);
+        const latFixedNew = Math.trunc(lat * factor);
+        const lonFixedNew = Math.trunc(lon * factor);
+
+        for (const existingPoint of allPoints) {
+            if (existingPoint.lat === undefined || existingPoint.lon === undefined) continue;
+            
+            const latFixedExisting = Math.trunc(existingPoint.lat * factor);
+            const lonFixedExisting = Math.trunc(existingPoint.lon * factor);
+            if (latFixedNew === latFixedExisting && lonFixedNew === lonFixedExisting) {
+                return true; // Found a duplicate
+            }
+        }
+        return false; // No duplicate
+    }
+
     getDelittiAttivi() {
         const originali = this.getCheckboxSelezionati(this.datasets.delitti, '#delitti-checkbox');
         const collaterali = this.getCheckboxSelezionati(this.datasets.omicidiCollaterali, '#omicidi-collaterali-checkbox');
@@ -598,7 +623,9 @@ class GeoAnalysisApp {
         document.getElementById('anno-corrente').textContent = annoCorrente;
         
         let puntiAttivi = [...originali, ...collaterali].filter(d => {
-            return d.userPoint === true || d.year <= annoCorrente;
+            // Modifica: Tutti i delitti, inclusi quelli aggiunti dall'utente,
+            // devono rispettare il filtro dell'anno corrente.
+            return d.year <= annoCorrente;
         });
         
         return puntiAttivi;
