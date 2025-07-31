@@ -545,14 +545,20 @@ const rawData = {
             'Villa Fra. Nar.',
             null,
             11
-        ],
-        
+        ],        
         [
             43.685244, 11.191890,
             'Casa Sal. Ind.',
             null,
            11
+        ],
+        [
+            43.797937, 11.234615,
+            'Casa A.Gre.',
+            null,
+           11
         ]
+        
     ],
 
     abitazioniVittime: [
